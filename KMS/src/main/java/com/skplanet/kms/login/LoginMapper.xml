@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8" ?>  
+<!DOCTYPE mapper  PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+
+<mapper namespace="com.skplanet.kms.login">
+
+	<!-- id, passwd로 계정 찾음 -->
+	<select id="selectLoginMember" parameterType="Map" resultType="HashMap">
+		SELECT 
+			MID
+			, MEMBER_NM
+			, POS_CD
+			, DIV_CD
+			, BIRTH_DT
+			, EMAIL
+			, CR_APPOINT_YN
+			, ADM_YN 
+			, KC_APPOINT_YN
+			, SUPER_YN
+		FROM KM_MEMBER
+		WHERE
+			DBSTS = 'O'
+			AND LOGIN_ABLE_YN = 'Y'
+			AND MID = #{mid, jdbcType=VARCHAR}
+			AND PASSWD = #{passwd, jdbcType=VARCHAR}
+	</select>
+	
+	<!-- 생년월일, email로 계정 찾음 -->
+	<select id="selectSelfAuth" parameterType="Map" resultType="HashMap">
+		SELECT 
+			MID
+			, MEMBER_NM
+			, POS_CD
+			, DIV_CD
+			, BIRTH_DT
+			, EMAIL
+			, CR_APPOINT_YN
+			, ADM_YN 
+			, KC_APPOINT_YN
+			, SUPER_YN
+			, LOGIN_ABLE_YN
+		FROM KM_MEMBER
+		WHERE
+			DBSTS = 'O'
+			AND MID = #{mid, jdbcType=VARCHAR}
+			AND BIRTH_DT = #{birthDt, jdbcType=VARCHAR}
+			AND EMAIL = #{email, jdbcType=VARCHAR}
+	</select>
+	
+	<update id="updatePasswd" parameterType="Map">
+		UPDATE
+			KM_MEMBER a
+		SET
+			a.PASSWD = #{passwd}
+		WHERE
+			a.DBSTS='O'
+			AND a.LOGIN_ABLE_YN = 'Y'
+			AND a.MID = #{mid}
+	</update>
+	
+</mapper>

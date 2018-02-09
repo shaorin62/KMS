@@ -1,0 +1,108 @@
+@charset "utf-8";
+/* 기본css 시작 --------------- */
+html, body {width:100%; height:100%; margin:0; padding:0; position:relative; font-size:12px; color:#8c8c8c; font-family:"나눔 고딕", 'Nanum Gothic', dotum;}
+form {margin:0; padding:0;}
+table {/*border-collapse:collapse;*/ width: 100%; border: 0; border-spacing: 0;}
+table caption {position:absolute; height:0; font-size:0; line-height:0; left:-1000%; top:0; opacity:0; filter:alpha(opacity=0);}
+table tr td, table tr th {padding:0;}
+img {padding:0; margin:0; border-width:0; vertical-align:middle;}
+p {margin:0;}
+a {text-decoration:none; color:#2b2b2b;}
+
+h1, h2, h3, h4, h5, h6 {padding:0; margin:0; font-size:1em;}
+fieldset {padding:0; margin:0; border: none;}
+fieldset legend {padding:0; margin:0; position:absolute; height:0; font-size:0; line-height:0; left:-1000%; top:0;}
+ul, ol, dl, li, dt, dd {padding:0; margin:0; list-style:none;}
+input[type=checkbox], input[type=radio] {border:0 !important; padding:0 !important; margin:0 !important; font-family:"나눔 고딕", 'Nanum Gothic', dotum; background:#fff;}
+textarea{border:1px solid #bbb; font-family:"나눔 고딕", 'Nanum Gothic', dotum; font-size:12px;}
+button {margin:0; padding:0; border:0; background:none; cursor:pointer; width:auto; overflow:visible; font-family:"나눔 고딕", 'Nanum Gothic', dotum; color:#2b2b2b; font-size:12px;}
+button::-moz-focus-inner, input::-moz-focus-inner {border:0; padding:0; -webkit-appearance:button; border-radius:0;}
+.hide {position:absolute !important; left: -1000% !important; top:0 !important; width:0; height:0; line-height:0; overflow:hidden; border:0 !important; padding:0 !important;}
+.del {font-size:0 !important; padding:0 !important; margin:0 !important; border:0 !important; width:0 !important; height:0 !important; visibility:hidden !important; display:none !important;}
+.end {border:0 none !important;}
+.endbg {background:none !important;}
+.va_m {vertical-align:middle !important;}
+
+ #skipNavi {height:0;}
+	#skipNavi a {
+		background: none repeat scroll 0 0 #000000;
+		color: #FFFFFF;
+		font-weight: bold;
+		height: 30px;
+		line-height: 30px;
+		opacity: 0.6;
+		position: absolute;
+		text-align: center;
+		top: -9999px;
+		width: 100%;
+		z-index: 100;
+	}
+
+@font-face {
+  font-family: 'Nanum Gothic';
+  font-style: normal;
+  font-weight: 400;
+  src: url(../font/NanumGothic-Regular.eot);
+  src: url(../font/NanumGothic-Regular.eot?#iefix) format('embedded-opentype'),
+       url(../font/NanumGothic-Regular.woff2) format('woff2'),
+       url(../font/NanumGothic-Regular.woff) format('woff'),
+       url(../font/NanumGothic-Regular.ttf) format('truetype');
+}
+@font-face {
+  font-family: 'Nanum Gothic';
+  font-style: normal;
+  font-weight: 700;
+  src: url(../font/NanumGothic-Bold.eot);
+  src: url(../font/NanumGothic-Bold.eot?#iefix) format('embedded-opentype'),
+       url(../font/NanumGothic-Bold.woff2) format('woff2'),
+       url(../font/NanumGothic-Bold.woff) format('woff'),
+       url(../font/NanumGothic-Bold.ttf) format('truetype');
+}
+@font-face {
+  font-family: 'Nanum Gothic';
+  font-style: normal;
+  font-weight: 900;
+  src: url(../font/NanumGothicExtraBold.eot);
+  src: url(../font/NanumGothicExtraBold.eot?#iefix) format('embedded-opentype'),
+       url(../font/NanumGothicExtraBold.woff) format('woff'),
+       url(../font/NanumGothicExtraBold.ttf) format('truetype');
+}
+ /* 기본css 끝 --------------- */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

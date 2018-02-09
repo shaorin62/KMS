@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8" ?>  
+<!DOCTYPE mapper  PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+
+<mapper namespace="com.skplanet.kms.admin.div">
+
+	<!-- 본부 리스트 -->
+	<select id="selectCenterList" parameterType="Map" resultType="HashMap">
+		SELECT
+			a.UPPER_CD
+			, a.DIV_CD AS CD
+			, CD_NM AS NM
+		FROM 
+			KM_DIV_CD a
+		WHERE
+			a.DBSTS = 'O'
+			AND UPPER_CD = 'SEC_00001'
+			AND substr(a.DIV_CD,1,4) = 'CEN_'
+		ORDER BY DIV_CD
+	</select>
+
+	<select id="selectCenter" parameterType="Map" resultType="HashMap">
+		SELECT
+			a.UPPER_CD
+			, a.DIV_CD AS CD
+			, CD_NM AS NM
+		FROM 
+			KM_DIV_CD a
+		WHERE
+			a.DBSTS = 'O'
+			AND a.DIV_CD = #{upperCd}
+	</select>
+	
+	<!-- 팀 리스트 -->
+	<select id="selectTeamList" parameterType="Map" resultType="HashMap">
+		SELECT
+			a.UPPER_CD
+			, a.DIV_CD AS CD
+			, CD_NM AS NM
+		FROM 
+			KM_DIV_CD a
+		WHERE
+			a.DBSTS = 'O'
+			AND UPPER_CD = #{upperCd}
+			AND substr(a.DIV_CD,1,4) = 'TEA_'
+		ORDER BY DIV_CD
+	</select>
+	
+	<insert id="insertDiv" parameterType="Map">
+		<selectKey keyProperty="divCd" resultType="String" order="BEFORE">
+			SELECT
+	    		#{prefix}||'_'||LPAD((NVL(MAX(SUBSTR(a.DIV_CD,5,9)),0)+1),5,'0') AS DIV_CD 
+		    FROM 
+		    	KM_DIV_CD a
+		    WHERE
+		    	substr(a.DIV_CD,1,4) = #{prefix}||'_'
+		</selectKey>	
+		INSERT INTO KM_DIV_CD ( 
+			DIV_CD
+			,UPPER_CD
+			,CD_NM
+			,REG_ID
+			,REG_DTM
+			,UPD_ID
+			,UPD_DTM
+			,DBSTS 
+		)
+		VALUES (
+			#{divCd}
+			,#{upperCd} 
+			,#{cdNm} 
+			,#{mid} 
+			,sysdate
+			,#{mid}
+			,sysdate 
+			,'O'  
+		)
+	</insert>
+
+	<update id="updateDiv" parameterType="Map">
+		UPDATE
+			KM_DIV_CD
+		SET
+			CD_NM = #{cdNm}
+			<if test=' upperCd != null and upperCd != "" '>
+			, UPPER_CD = #{upperCd}
+			</if>
+			, UPD_ID = #{mid}
+			, UPD_DTM = sysdate
+		WHERE
+			DBSTS='O'
+			AND DIV_CD = #{divCd}
+	</update>
+
+	<update id="deleteDiv" parameterType="Map">
+		UPDATE
+			KM_DIV_CD
+		SET
+			DBSTS = 'D'
+			, UPD_ID = #{mid}
+			, UPD_DTM = sysdate
+		WHERE
+			DBSTS='O'
+			AND DIV_CD = #{divCd}
+	</update>
+	
+	<select id="selectDivCnt" parameterType="Map" resultType="int">
+		SELECT
+			count(1)
+		FROM
+			KM_DIV_CD
+		WHERE
+			DBSTS='O'
+			AND UPPER_CD = #{divCd}
+	</select>
+	
+	<select id="selectMemberCnt" parameterType="Map" resultType="int">
+		SELECT
+			count(1)
+		FROM
+			KM_MEMBER
+		WHERE
+			DBSTS='O'
+			AND DIV_CD = #{divCd}
+			AND ADM_YN='N'
+	</select>
+	
+</mapper>

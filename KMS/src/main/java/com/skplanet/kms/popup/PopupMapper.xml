@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8" ?>  
+<!DOCTYPE mapper  PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+
+<mapper namespace="com.skplanet.kms.popup">
+
+	<!-- 팝업 코드 -->
+	<select id="selectPopList" parameterType="Map" resultType="HashMap">
+		SELECT
+			ADM_CD AS CD
+			, CD_NM AS NM
+		FROM KM_ADM_CD a
+		WHERE
+			a.DBSTS = 'O'
+			AND a.UPPER_CD=#{upperCd}
+			<if test=' searchText != null and searchText != "" '>
+				AND a.CD_NM like '%'||#{searchText}||'%'
+			</if>			
+		ORDER BY a.DISP_ORD, a.ADM_CD
+	</select>
+	
+	<select id="selectPopMemberList" parameterType="Map" resultType="HashMap">
+		SELECT
+			a.MID
+			, a.MEMBER_NM
+			, a.POS_CD
+			, pos.CD_NM AS POS_NM
+			, a.DIV_CD
+			, div.CD_NM AS DIV_NM
+		FROM
+			KM_MEMBER a
+			LEFT JOIN KM_ADM_CD pos ON pos.UPPER_CD='POS_CD' AND pos.ADM_CD=a.POS_CD 
+			LEFT JOIN KM_DIV_CD div ON div.DIV_CD=a.DIV_CD 
+		WHERE
+			a.DBSTS='O'
+			AND a.LOGIN_ABLE_YN='Y'
+			<if test=' posLevel=="1" '>
+				AND a.POS_CD IN('POS_00010')
+			</if>
+			<if test=' posLevel=="2" '>
+				AND a.POS_CD IN('POS_00020','POS_00030','POS_00040')
+			</if>
+			<if test=' posLevel=="3" '>
+				AND a.POS_CD IN('POS_00050','POS_00060')
+			</if>
+			<if test=' posLevel=="4" '>
+				AND a.POS_CD IN('POS_00100')
+			</if>
+			<if test=' searchText != null and searchText != "" '>
+				AND a.MEMBER_NM like '%'||#{searchText}||'%'
+			</if>														
+	</select>
+	
+	<select id="selectTeamList" parameterType="Map" resultType="HashMap">
+		SELECT
+			DIV_CD AS CD
+			, CD_NM AS NM
+		FROM KM_DIV_CD a
+		WHERE
+			a.DBSTS = 'O'
+			AND substr(a.DIV_CD,1,3)='TEA'
+			<if test=' searchText != null and searchText != "" '>
+				AND a.CD_NM like '%'||#{searchText}||'%'
+			</if>			
+		ORDER BY a.CD_NM
+	</select>	
+</mapper>

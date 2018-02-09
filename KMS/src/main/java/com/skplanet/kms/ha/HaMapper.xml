@@ -1,0 +1,247 @@
+<?xml version="1.0" encoding="UTF-8" ?>  
+<!DOCTYPE mapper  PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+
+<mapper namespace="com.skplanet.kms.ha">
+<resultMap type="HashMap" id="haMap">
+		<result property="CONT" column="CONT" javaType="java.lang.String" jdbcType="CLOB" />
+	</resultMap>
+	
+<delete id="deleteHa" parameterType="Map">
+		
+		UPDATE KM_HA
+			SET
+		  	DBSTS ='D'
+		  WHERE
+		  	HA_ID  = #{haId, jdbcType=VARCHAR}
+		
+
+</delete>
+	
+<sql id="selectHaSql">
+			SELECT 
+					 a.HA_ID
+					,a.HA_CATE_CD
+					,cat.CD_NM AS HA_CATE_NM
+					,a.CLIENT_CD
+					,to_date(a.ONAIR_START_DT,'YYYYMMDD') AS ONAIR_START_DT
+					,a.ONAIR_END_DT
+					,a.MEDIA_CD
+					,med.CD_NM AS MEDIA_NM
+					,a.PROD_TEAM
+					,a.PLAN_TEAM
+					,a.PRODUCTION_CD
+					,a.TITLE
+					,a.CONT
+					,NVL(A.HIT,0) AS HIT
+					,a.REG_ID
+					,a.REG_DTM
+					,a.UPD_ID
+					,a.UPD_DTM
+					,a.DBSTS
+					,ROW_NUMBER() OVER(
+								ORDER BY a.REG_DTM DESC
+					) AS RNUM
+					,mem.MEMBER_NM 
+					,div.CD_NM AS TEAM_NM
+					,att.UPLOAD_SEQ
+          			,att.ATTACH_TYP
+          			,up.FILE_PATH
+          			,up.ORG_FILE_NM					
+			FROM 
+				KM_HA a
+				LEFT JOIN KM_ADM_CD cli ON cli.UPPER_CD='CLIENT_CD' AND cli.ADM_CD=a.CLIENT_CD
+				LEFT JOIN KM_MEMBER mem ON mem.MID=a.REG_ID
+				LEFT JOIN KM_DIV_CD pla ON pla.DIV_CD=a.PLAN_TEAM
+				LEFT JOIN KM_DIV_CD pro ON pro.DIV_CD=a.PROD_TEAM				
+				LEFT JOIN KM_ADM_CD cat ON cat.ADM_CD=a.HA_CATE_CD
+				LEFT JOIN KM_DIV_CD div ON div.DIV_CD=mem.DIV_CD
+				LEFT JOIN KM_ADM_CD med ON med.UPPER_CD='MEDIA_CD' AND med.ADM_CD=a.MEDIA_CD
+				LEFT JOIN (
+					SELECT * FROM
+					(
+						SELECT
+							BID
+							, UPLOAD_SEQ
+							, ATTACH_TYP
+							, row_number() over(partition by BID order by UPLOAD_SEQ) AS RNUM 
+						FROM
+							KM_ATTACH
+						WHERE
+							DBSTS='O'
+					) WHERE RNUM=1
+				) att ON att.BID = a.HA_ID
+				LEFT JOIN KM_UPLOAD up ON att.UPLOAD_SEQ = up.UPLOAD_SEQ				
+			WHERE
+				a.DBSTS = 'O'
+				<if test=' searchRegId != null and searchRegId != "" '>
+				AND a.REG_ID = #{searchRegId, jdbcType=VARCHAR}
+				</if>
+				<if test=" haCateCd != null and haCateCd != '' ">
+				AND a.HA_CATE_CD = #{haCateCd}
+				</if>
+				<if test=" searchMediaCd != null and searchMediaCd != '' ">
+					AND a.MEDIA_CD = #{searchMediaCd}
+				</if>
+				<if test=" searchStart != null and searchStart != '' ">
+				AND trunc(a.REG_DTM) &gt;= to_date(#{searchStart}, 'YYYY-MM-DD')
+				</if>
+				<if test=" searchEnd != null and searchEnd != '' ">
+					AND trunc(a.REG_DTM) &lt;= to_date(#{searchEnd}, 'YYYY-MM-DD')
+				</if>
+				<if test=" searchText != null and searchText != '' ">
+					<choose>
+						<when test=" searchType == 'title' ">
+							AND a.TITLE like '%'||#{searchText}||'%'
+						</when>			
+						<when test=" searchType == 'regNm' ">
+							AND mem.MEMBER_NM like '%'||#{searchText}||'%'
+						</when>
+						<when test=' searchType == "clientNm" '>
+							AND cli.CD_NM like '%'||#{searchText}||'%'
+						</when>		
+						<when test=' searchType == "planTeam" '>
+							AND pla.CD_NM like '%'||#{searchText}||'%'
+						</when>
+						<when test=' searchType == "prodTeam" '>
+							AND pro.CD_NM like '%'||#{searchText}||'%'
+						</when>				
+						<when test=" searchType == null or searchType == '' ">
+							AND ( 
+								a.TITLE like '%'||#{searchText}||'%' 
+								OR mem.MEMBER_NM like '%'||#{searchText}||'%' 
+								OR cli.CD_NM like '%'||#{searchText}||'%'
+								OR pla.CD_NM like '%'||#{searchText}||'%'
+								OR pro.CD_NM like '%'||#{searchText}||'%'
+							)
+						</when>
+						<otherwise>
+							AND 1=0
+						</otherwise>
+					</choose>				
+				</if>			
+	</sql>
+	
+	<select id="selectHaCnt" parameterType="Map" resultType="int">
+		SELECT count(1) FROM (<include refid="selectHaSql"/>)
+	</select>
+	
+	<select id="selectHaList" parameterType="Map" resultMap="haMap">
+		SELECT * FROM (<include refid="selectHaSql"/> ) WHERE RNUM BETWEEN #{firstRow} AND #{lastRow} ORDER BY RNUM
+	</select>
+	
+	
+	 <select id="selectHaOne" parameterType="Map" resultMap="haMap">
+			SELECT 
+					 a.HA_ID
+					,a.HA_CATE_CD
+					,cat.CD_NM AS HA_CATE_NM
+					,a.CLIENT_CD
+					,cli.CD_NM AS CLIENT_NM
+					,to_date(a.ONAIR_START_DT,'YYYYMMDD') AS ONAIR_START_DT
+					,a.ONAIR_END_DT
+					,a.MEDIA_CD
+					,med.CD_NM AS MEDIA_NM
+					,a.PROD_TEAM
+					,pro.CD_NM AS PROD_TEAM_NM
+					,a.PLAN_TEAM
+					,pla.CD_NM AS PLAN_TEAM_NM
+					,a.PRODUCTION_CD
+					,a.TITLE
+					,a.CONT
+					,NVL(A.HIT,0) AS HIT
+					,a.REG_ID
+					,a.REG_DTM
+					,a.UPD_ID
+					,a.UPD_DTM
+					,a.DBSTS
+					,mem.MEMBER_NM 
+					,div.CD_NM AS TEAM_NM
+					, log.SUPER_YN
+			FROM 
+				KM_HA a
+				LEFT JOIN KM_ADM_CD cli ON cli.UPPER_CD='CLIENT_CD' AND cli.ADM_CD=a.CLIENT_CD
+				LEFT JOIN KM_ADM_CD med ON med.UPPER_CD='MEDIA_CD' AND med.ADM_CD=a.MEDIA_CD
+				LEFT JOIN KM_DIV_CD pla ON pla.DIV_CD=a.PLAN_TEAM
+				LEFT JOIN KM_DIV_CD pro ON pro.DIV_CD=a.PROD_TEAM
+				LEFT JOIN KM_MEMBER mem ON mem.MID=a.REG_ID
+				LEFT JOIN KM_ADM_CD cat ON cat.ADM_CD=a.HA_CATE_CD
+				LEFT JOIN KM_DIV_CD div ON div.DIV_CD=mem.DIV_CD
+				LEFT JOIN KM_MEMBER log ON log.MID=#{mid}
+			WHERE
+				a.DBSTS = 'O'
+				AND a.HA_ID = #{haId, jdbcType=VARCHAR}
+	</select>
+	
+	<insert id="insertHa" parameterType="Map" >
+		<selectKey keyProperty="haId" resultType="String" order="BEFORE">
+			SELECT 'HA'||LPAD(SEQ_KM_HA_ID.NEXTVAL,8,'0') FROM DUAL
+		</selectKey>
+		INSERT INTO KM_HA(
+			HA_ID
+			,HA_CATE_CD
+			,CLIENT_CD
+			,ONAIR_START_DT
+			,MEDIA_CD
+			,PLAN_TEAM
+			,PROD_TEAM
+			,PRODUCTION_CD
+			,TITLE
+			<if test=' cont != null and cont != "" '>
+			,CONT
+			</if>
+			,HIT
+			,REG_ID
+			,REG_DTM
+			,UPD_ID
+			,UPD_DTM
+			,DBSTS
+		)VALUES(
+			#{haId, jdbcType=VARCHAR}
+			,#{haCateCd, jdbcType=VARCHAR}
+			,#{clientCd, jdbcType=VARCHAR}
+			,replace(#{onairStartDt, jdbcType=VARCHAR},'-','')
+			,#{mediaCd, jdbcType=VARCHAR}
+			,#{planTeam, jdbcType=VARCHAR}
+			,#{prodTeam, jdbcType=VARCHAR}
+			,#{productionCd, jdbcType=VARCHAR}
+			,#{title, jdbcType=VARCHAR}
+			<if test=' cont != null and cont != "" '>
+			,#{cont}
+			</if>
+			,0
+			,#{mid, jdbcType=VARCHAR}
+			,sysdate
+			,#{mid, jdbcType=VARCHAR}
+			,sysdate
+			,'O'
+		)
+	</insert>
+	
+	<update id="updateHaHit" parameterType="Map">
+		UPDATE KM_HA
+			SET
+				HIT = nvl(HIT,0)+1
+		WHERE
+				HA_ID = #{haId}
+	</update>
+	
+	<update id="updateHa" parameterType="Map">
+		UPDATE KM_HA
+			SET 
+				TITLE = #{title, jdbcType=VARCHAR}
+				,CLIENT_CD = #{clientCd, jdbcType=VARCHAR}
+				,ONAIR_START_DT = replace(#{onairStartDt, jdbcType=VARCHAR},'-','')
+				,MEDIA_CD = #{mediaCd, jdbcType=VARCHAR}
+				,PLAN_TEAM = #{planTeam, jdbcType=VARCHAR}
+				,PROD_TEAM = #{prodTeam, jdbcType=VARCHAR}
+				,PRODUCTION_CD = #{productionCd, jdbcType=VARCHAR}
+				<if test=' cont != null and cont != "" '>
+				,CONT = #{cont}
+				</if>
+				,UPD_ID = #{mid}
+				,UPD_DTM = sysdate
+			WHERE
+			HA_ID = #{haId}
+	</update>
+	
+</mapper>	 

@@ -1,0 +1,327 @@
+<?xml version="1.0" encoding="UTF-8" ?>  
+<!DOCTYPE mapper  PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+
+<mapper namespace="com.skplanet.kms.virtual">
+
+	<!-- 본인 작성 또는 본인이 참여자인 VC -->
+	<sql id="selectVirtualSql">
+		SELECT 
+			a.VC_ID
+			, a.TITLE
+			, a.TOP_YN
+			, a.BIZ_CD
+			, biz.CD_NM AS BIZ_NM		
+			, a.CONTACT_PATH_CD
+			, con.CD_NM AS CONTACT_PATH_NM				
+			, NVL(a.HIT,0) AS HIT
+			, a.REG_ID
+			, mem.MEMBER_NM AS REG_NM
+			, a.REG_DTM
+			, decode(substr(div.DIV_CD,1,4),'TEA_',div.CD_NM,'') AS REG_TEAM_NM	
+			, decode(substr(div.DIV_CD,1,4),'CEN_',div.CD_NM,'TEA_',div2.CD_NM,'') AS REG_CENTER_NM		
+			, a.BILLING
+			, row_number() over(
+				<choose>
+					<when test="orderBy=='hit' ">
+						ORDER BY a.TOP_YN DESC, a.HIT DESC
+					</when>
+					<otherwise>
+						ORDER BY a.TOP_YN DESC,a.REG_DTM DESC
+					</otherwise>
+				</choose>
+			) AS RNUM 
+		FROM 
+			KM_VC a
+			LEFT JOIN KM_VC_AUTH aut ON a.VC_ID=aut.VC_ID AND aut.MID=#{mid}
+			LEFT JOIN KM_ADM_CD con ON con.UPPER_CD='CONTACT_PATH_CD' AND con.ADM_CD=a.CONTACT_PATH_CD
+			LEFT JOIN KM_ADM_CD biz ON biz.UPPER_CD='BIZ_CD' AND biz.ADM_CD=a.BIZ_CD
+			LEFT JOIN KM_MEMBER mem ON mem.MID=a.REG_ID
+			LEFT JOIN KM_DIV_CD div ON div.DIV_CD=mem.DIV_CD
+			LEFT JOIN KM_DIV_CD div2 ON div2.DIV_CD=div.UPPER_CD
+			LEFT JOIN KM_MEMBER log ON log.MID=#{mid}
+		WHERE
+			a.DBSTS = 'O'
+			AND (
+				a.REG_ID = #{mid, jdbcType=VARCHAR}
+				OR
+				aut.MID IS NOT NULL
+				OR
+				log.SUPER_YN='Y'
+			)
+			<if test=' searchRegId != null and searchRegId != "" '>
+				AND a.REG_ID = #{searchRegId, jdbcType=VARCHAR}
+			</if>					
+			<if test=' searchBizCd != null and searchBizCd != "" '>
+				AND a.BIZ_CD = #{searchBizCd}
+			</if>
+			<if test=' searchContactCd != null and searchContactCd != "" '>
+				AND a.CONTACT_PATH_CD = #{searchContactCd}
+			</if>
+			<if test=' searchStart != null and searchStart != "" '>
+				AND trunc(a.REG_DTM) &gt;= to_date(#{searchStart}, 'YYYY-MM-DD')
+			</if>
+			<if test=' searchEnd != null and searchEnd != "" '>
+				AND trunc(a.REG_DTM) &lt;= to_date(#{searchEnd}, 'YYYY-MM-DD')
+			</if>
+			<if test=' searchText != null and searchText != "" '>
+				<choose>
+					<when test=' searchType == "title" '>
+						AND a.TITLE like '%'||#{searchText}||'%'
+					</when>			
+					<when test=' searchType == "regNm" '>
+						AND mem.MEMBER_NM like '%'||#{searchText}||'%'
+					</when>
+					<when test=' searchType == null or searchType == "" '>
+						AND ( a.TITLE like '%'||#{searchText}||'%' OR mem.MEMBER_NM like '%'||#{searchText}||'%' )
+					</when>
+					<otherwise>
+						AND 1=0
+					</otherwise>
+				</choose>
+			</if>			
+	</sql>
+
+	<select id="selectVirtualCnt" parameterType="Map" resultType="int">
+		SELECT count(1) FROM ( <include refid="selectVirtualSql"/> )
+	</select>
+	
+	<select id="selectVirtualList" parameterType="Map" resultType="HashMap">
+		SELECT * FROM ( <include refid="selectVirtualSql"/> ) WHERE RNUM BETWEEN #{firstRow} AND #{lastRow} ORDER BY RNUM
+	</select>
+	
+	<resultMap id="virtualMap" type="HashMap"> 
+    	<result property="VC_ID" column="VC_ID"/>
+    	<result property="TITLE" column="TITLE"/>
+    	<result property="CLIENT_NM" column="CLIENT_NM"/>
+    	<result property="CONTACT_DT" column="CONTACT_DT"/>
+    	<result property="CONTACT_PATH_CD" column="CONTACT_PATH_CD"/>
+    	<result property="CONTACT_PATH_NM" column="CONTACT_PATH_NM"/>
+    	<result property="CO_ATTEND" column="CO_ATTEND"/>
+    	<result property="AD_ATTEND" column="AD_ATTEND"/>
+    	<result property="BIZ_CD" column="BIZ_CD"/>
+    	<result property="BIZ_NM" column="BIZ_NM"/>
+    	<result property="CONT" column="CONT" javaType="java.lang.String" jdbcType="CLOB" />
+    	<result property="DIRECTOR_COMMENT" column="DIRECTOR_COMMENT"/>
+    	<result property="HIT" column="HIT"/>
+    	<result property="REG_ID" column="REG_ID"/>
+    	<result property="REG_DTM" column="REG_DTM"/>
+	</resultMap>
+
+	<select id="selectVirtual" parameterType="Map" resultMap="virtualMap">
+		SELECT 
+			a.VC_ID
+			, a.TITLE
+			, to_date(a.CONTACT_DT,'YYYYMMDD') AS CONTACT_DT
+			, a.CONTACT_PATH_CD
+			, con.CD_NM AS CONTACT_PATH_NM
+			, a.CO_ATTEND
+			, a.AD_ATTEND
+			, a.BIZ_CD
+			, biz.CD_NM AS BIZ_NM
+			, a.CONT
+			, a.DIRECTOR_COMMENT
+			, NVL(a.HIT,0) AS HIT
+			, a.REG_ID
+			, a.REG_DTM	
+			, decode(aut.MID, null, 'N', 'Y') AS AUTH_YN
+			, log.SUPER_YN
+			, a.BILLING	
+			, a.TOP_YN
+		FROM 
+			KM_VC a
+			LEFT JOIN KM_VC_AUTH aut ON a.VC_ID=aut.VC_ID AND aut.MID=#{mid}			
+			LEFT JOIN KM_ADM_CD con ON con.UPPER_CD='CONTACT_PATH_CD' AND con.ADM_CD=a.CONTACT_PATH_CD
+			LEFT JOIN KM_ADM_CD biz ON biz.UPPER_CD='BIZ_CD' AND biz.ADM_CD=a.BIZ_CD 
+			LEFT JOIN KM_MEMBER log ON log.MID=#{mid}
+		WHERE
+			a.DBSTS = 'O'
+			AND (
+				a.REG_ID = #{mid, jdbcType=VARCHAR}
+				OR
+				aut.MID IS NOT NULL		
+				OR
+				log.SUPER_YN='Y'						
+			)
+			AND a.VC_ID = #{vcId, jdbcType=VARCHAR}	
+	</select>
+
+	<update id="updateHit">
+		UPDATE
+			KM_VC
+		SET
+			HIT = nvl(HIT,0) + 1
+		WHERE
+			VC_ID = #{vcId}
+			AND REG_ID != #{mid}
+	</update>
+	
+	<insert id="insertVirtual" parameterType="Map">
+		<selectKey keyProperty="vcId" resultType="String" order="BEFORE">
+			SELECT 'VC'||LPAD(SEQ_KM_VC_ID.NEXTVAL,8,'0') FROM DUAL
+		</selectKey>	
+		INSERT INTO KM_VC ( 
+			VC_ID
+			,TITLE
+			,BILLING
+			,CONTACT_DT
+			,CONTACT_PATH_CD
+			,CO_ATTEND
+			,AD_ATTEND
+			,BIZ_CD
+			,CONT
+			,DIRECTOR_COMMENT
+			,HIT
+			,REG_ID
+			,REG_DTM
+			,UPD_ID
+			,UPD_DTM
+			,DBSTS 
+			,TOP_YN
+		)
+		VALUES ( 
+			#{vcId, jdbcType=VARCHAR}
+			, #{title, jdbcType=VARCHAR}
+			, #{billing, jdbcType=VARCHAR}
+			, replace(#{contactDt, jdbcType=VARCHAR},'-','')
+			, #{contactPathCd, jdbcType=VARCHAR}
+			, #{coAttend, jdbcType=VARCHAR}
+			, #{adAttend, jdbcType=VARCHAR}
+			, #{bizCd, jdbcType=VARCHAR}
+			, #{cont}
+			, #{directorComment, jdbcType=VARCHAR}
+			, 0
+			, #{mid, jdbcType=VARCHAR}
+			, sysdate
+			, #{mid, jdbcType=VARCHAR}
+			, sysdate
+			, 'O'
+			,#{topYn, jdbcType=VARCHAR}
+		)
+	</insert>
+
+	<update id="updateVirtual" parameterType="Map">
+		UPDATE 
+			KM_VC
+		SET
+			TITLE = #{title, jdbcType=VARCHAR}
+			, BILLING = #{billing, jdbcType=VARCHAR}
+			, CONTACT_DT = replace(#{contactDt, jdbcType=VARCHAR},'-','')
+			, CONTACT_PATH_CD = #{contactPathCd, jdbcType=VARCHAR}
+			, CO_ATTEND = #{coAttend, jdbcType=VARCHAR}
+			, AD_ATTEND = #{adAttend, jdbcType=VARCHAR}
+			, BIZ_CD = #{bizCd, jdbcType=VARCHAR}
+			, CONT = #{cont}
+			, UPD_ID = #{mid}
+			, UPD_DTM = sysdate
+			, TOP_YN = #{topYn, jdbcType=VARCHAR}
+		WHERE
+			VC_ID = #{vcId}
+			AND REG_ID = #{mid, jdbcType=VARCHAR}
+	</update> 
+
+	<update id="deleteVirtual" parameterType="Map">
+		UPDATE 
+			KM_VC
+		SET
+			DBSTS = 'D'
+			, UPD_ID = #{mid}
+			, UPD_DTM = sysdate
+		WHERE
+			VC_ID = #{vcId}
+			AND EXISTS(
+				SELECT 1
+				FROM KM_MEMBER
+				WHERE DBSTS='O' AND SUPER_YN='Y' AND MID = #{mid}
+			)
+	</update>
+	
+	<select id="selectVirtualAuthList" parameterType="Map" resultType="HashMap">
+		SELECT
+			a.VC_ID
+			, a.MID
+			, mem.POS_CD
+			, mem.DIV_CD
+			, mem.MEMBER_NM
+		FROM
+			KM_VC_AUTH a
+			LEFT JOIN KM_MEMBER mem ON mem.MID=a.MID
+		WHERE
+			a.DBSTS='O'
+			AND a.VC_ID=#{vcId}
+		ORDER BY a.DISP_ORD, mem.MEMBER_NM
+	</select>
+
+	<update id="deleteVirtualAuth" parameterType="Map">
+		UPDATE 
+			KM_VC_AUTH
+		SET
+			DBSTS = 'D'
+		WHERE
+			VC_ID = #{vcId}
+	</update>
+
+	<update id="insertVirtualAuth" parameterType="Map">
+		MERGE INTO 
+			KM_VC_AUTH a
+		USING ( SELECT #{vcId} AS VC_ID, #{authMid} AS MID FROM DUAL ) b
+		ON ( a.VC_ID=b.VC_ID AND a.MID=b.MID )
+		WHEN MATCHED THEN
+			UPDATE
+				SET 
+					DBSTS='O'
+					, DISP_ORD = #{dispOrd,jdbcType=VARCHAR}
+		WHEN NOT MATCHED THEN
+			INSERT (
+				VC_ID, MID, DISP_ORD, DBSTS
+			)
+			VALUES (
+				b.VC_ID, b.MID, #{dispOrd,jdbcType=VARCHAR}, 'O'
+			)
+	</update>
+	
+	<update id="updateComment" parameterType="Map">
+		UPDATE 
+			KM_VC
+		SET
+			DIRECTOR_COMMENT = #{directorComment, jdbcType=VARCHAR}
+			, UPD_ID = #{mid}
+			, UPD_DTM = sysdate
+		WHERE
+			VC_ID = #{vcId}
+	</update>
+	
+	<select id="selectFuList" parameterType="Map" resultType="HashMap">
+		SELECT
+			a.FU_CONT
+		FROM
+			KM_VC_FU a
+		WHERE
+			a.DBSTS='O'
+			AND a.VC_ID = #{vcId}
+		ORDER BY a.ORD
+	</select>
+	
+	<insert id="insertFu" parameterType="Map">
+		INSERT INTO KM_VC_FU ( 
+			VC_ID
+			,ORD
+			,FU_CONT
+			,REG_ID
+			,REG_DTM
+			,UPD_ID
+			,UPD_DTM
+			,DBSTS 
+		)
+		VALUES ( 
+			#{vcId, jdbcType=VARCHAR}
+			, ( SELECT nvl(max(ORD),0)+1 FROM KM_VC_FU WHERE VC_ID=#{vcId, jdbcType=VARCHAR} )
+			, #{fuCont, jdbcType=VARCHAR}
+			, #{mid, jdbcType=VARCHAR}
+			, sysdate
+			, #{mid, jdbcType=VARCHAR}
+			, sysdate
+			, 'O' 
+		)
+	</insert>
+	
+</mapper>

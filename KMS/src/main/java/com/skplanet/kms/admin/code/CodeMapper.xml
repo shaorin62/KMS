@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8" ?>  
+<!DOCTYPE mapper  PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+
+<mapper namespace="com.skplanet.kms.admin.code">
+
+	<select id="selectCodeList" parameterType="String" resultType="HashMap">
+		SELECT
+			a.UPPER_CD
+			, ADM_CD AS CD
+			, CD_NM AS NM
+		FROM KM_ADM_CD a
+		WHERE
+			a.DBSTS = 'O'
+			AND a.UPPER_CD=#{upperCd}
+		ORDER BY a.DISP_ORD, a.ADM_CD
+	</select>
+
+	<insert id="insertCode" parameterType="Map">
+		<selectKey keyProperty="admCd" resultType="String" order="BEFORE">
+			SELECT
+	    		MAX(b.PREFIX)||'_'||LPAD((NVL(MAX(SUBSTR(a.ADM_CD,5,9)),0)+1),5,'0') AS ADM_CD 
+		    FROM 
+		    	KM_ADM_CD a
+		      LEFT JOIN KM_ADM_CD b ON a.UPPER_CD=b.ADM_CD
+		    WHERE
+		    	a.UPPER_CD=#{upperCd}
+		</selectKey>	
+		INSERT INTO KM_ADM_CD ( 
+			ADM_CD
+			,UPPER_CD
+			,CD_NM
+			,REG_ID
+			,REG_DTM
+			,UPD_ID
+			,UPD_DTM
+			,DBSTS 
+		)
+		VALUES (
+			#{admCd}
+			,#{upperCd} 
+			,#{cdNm} 
+			,#{mid} 
+			,sysdate
+			,#{mid}
+			,sysdate 
+			,'O'  
+		)
+	</insert>
+
+	<update id="updateCode" parameterType="Map">
+		UPDATE
+			KM_ADM_CD
+		SET
+			CD_NM = #{cdNm}
+			, UPD_ID = #{mid}
+			, UPD_DTM = sysdate
+		WHERE
+			DBSTS='O'
+			AND UPPER_CD = #{upperCd}
+			AND ADM_CD = #{admCd}
+	</update>
+
+	<update id="deleteCode" parameterType="Map">
+		UPDATE
+			KM_ADM_CD
+		SET
+			DBSTS = 'D'
+			, UPD_ID = #{mid}
+			, UPD_DTM = sysdate
+		WHERE
+			DBSTS='O'
+			AND UPPER_CD = #{upperCd}
+			AND ADM_CD = #{admCd}
+	</update>
+	
+</mapper>

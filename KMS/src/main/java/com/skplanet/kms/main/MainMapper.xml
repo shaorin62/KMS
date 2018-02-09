@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8" ?>  
+<!DOCTYPE mapper  PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+
+<mapper namespace="com.skplanet.kms.main">
+
+	<select id="selectDocCnt" parameterType="String" resultType="int">
+		SELECT
+			VC_CNT + PT_CNT + BD_CNT + HA_CNT AS DOC_CNT
+		FROM
+		(
+		  SELECT
+		    (SELECT COUNT(1) FROM KM_VC WHERE DBSTS='O' AND REG_ID = #{mid}) AS VC_CNT
+		    , (SELECT COUNT(1) FROM KM_PT WHERE DBSTS='O' AND REG_ID = #{mid}) AS PT_CNT
+		    , (SELECT COUNT(1) FROM KM_BOARD WHERE DBSTS='O' AND REG_ID = #{mid}) AS BD_CNT
+		    , (SELECT COUNT(1) FROM KM_HA WHERE DBSTS='O' AND REG_ID = #{mid}) AS HA_CNT
+		  FROM DUAL
+		)		
+	</select>
+	
+	<select id="selectSumPoint" parameterType="String" resultType="int">
+		SELECT
+			NVL(SUM(POINT),0)
+		FROM
+			KM_POINT a
+		WHERE
+			a.MID = #{mid}			
+	</select>
+	
+	<sql id="selectPointSql">
+		SELECT
+			a.POINT
+			, a.REG_DTM
+			, decode(substr(a.BID,1,2),'BD','TR',substr(a.BID,1,2)) AS TB
+			, a.BID
+			, decode(substr(a.BID,1,2),'VC',vc.TITLE,'PT',pt.TITLE,'BD',tr.TITLE,'HA',ha.TITLE,'') AS TITLE
+			, ps.POINT_GUBUN_NM
+			, ps.POINT_CLASS_NM
+			, row_number() over( ORDER BY a.REG_DTM DESC ) AS RNUM
+		FROM
+			KM_POINT a
+			LEFT JOIN KM_POINT_SET ps ON ps.POINT_TYP=a.POINT_TYP
+			LEFT JOIN KM_VC vc ON vc.VC_ID = a.BID
+			LEFT JOIN KM_PT pt ON pt.PT_ID = a.BID
+			LEFT JOIN KM_BOARD tr ON tr.BD_TYPE_CD = 'BOD_00001' AND tr.BD_ID = a.BID
+			LEFT JOIN KM_HA ha ON ha.HA_ID = a.BID
+		WHERE
+			a.MID = #{mid}
+	</sql>
+	
+	<select id="selectPointCnt" parameterType="Map" resultType="int">
+		SELECT count(1) FROM ( <include refid="selectPointSql"/> )
+	</select>
+	
+	<select id="selectPointList" parameterType="Map" resultType="HashMap">
+		SELECT * FROM ( <include refid="selectPointSql"/> ) WHERE RNUM BETWEEN #{firstRow} AND #{lastRow} ORDER BY RNUM
+	</select>
+	
+</mapper>

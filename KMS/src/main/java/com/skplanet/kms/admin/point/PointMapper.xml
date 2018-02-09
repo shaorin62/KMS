@@ -1,0 +1,216 @@
+<?xml version="1.0" encoding="UTF-8" ?>  
+<!DOCTYPE mapper  PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+
+<mapper namespace="com.skplanet.kms.admin.point">
+
+	<select id="selectMember" parameterType="String" resultType="HashMap">
+		SELECT
+			a.MID
+			, a.MEMBER_NM
+			, decode(substr(div.DIV_CD,1,4),'TEA_',div.CD_NM,'') AS TEAM_NM	
+			, decode(substr(div.DIV_CD,1,4),'CEN_',div.CD_NM,'TEA_',div2.CD_NM,'') AS CENTER_NM				
+		FROM
+			KM_MEMBER a
+			LEFT JOIN KM_DIV_CD div ON div.DIV_CD=a.DIV_CD
+			LEFT JOIN KM_DIV_CD div2 ON div2.DIV_CD=div.UPPER_CD	
+		WHERE
+			a.MID = #{mid}	
+	</select>
+	
+	<select id="selectSumPoint" parameterType="String" resultType="int">
+		SELECT
+			NVL(SUM(POINT),0)
+		FROM
+			KM_POINT a
+		WHERE
+			a.MID = #{mid}			
+	</select>
+	
+	<sql id="selectPointSql">
+		SELECT
+			a.POINT
+			, a.MID
+			, a.REG_DTM
+			, a.BID
+			, mem.MEMBER_NM
+			, decode(substr(div.DIV_CD,1,4),'TEA_',div.CD_NM,'') AS TEAM_NM	
+			, decode(substr(div.DIV_CD,1,4),'CEN_',div.CD_NM,'TEA_',div2.CD_NM,'') AS CENTER_NM				
+			, row_number() over( ORDER BY a.REG_DTM DESC ) AS RNUM
+		FROM
+			KM_POINT a
+			LEFT JOIN KM_MEMBER mem ON mem.MID=a.MID
+			LEFT JOIN KM_DIV_CD div ON div.DIV_CD=mem.DIV_CD
+			LEFT JOIN KM_DIV_CD div2 ON div2.DIV_CD=div.UPPER_CD			
+		WHERE
+			1=1
+			<if test=' searchStart != null and searchStart != "" '>
+				AND trunc(a.REG_DTM) &gt;= to_date(#{searchStart}, 'YYYY-MM-DD')
+			</if>
+			<if test=' searchEnd != null and searchEnd != "" '>
+				AND trunc(a.REG_DTM) &lt;= to_date(#{searchEnd}, 'YYYY-MM-DD')
+			</if>
+			<if test=' searchText != null and searchText != "" '>
+				<if test=' searchType == "memberNm" '>
+					AND mem.MEMBER_NM like '%'||#{searchText}||'%'
+				</if>			
+				<if test=' searchType == "mid" '>
+					AND a.MID like '%'||#{searchText}||'%'
+				</if>
+				<if test=' searchType == null or searchType == "" '>
+					AND ( mem.MEMBER_NM like '%'||#{searchText}||'%' OR a.MID like '%'||#{searchText}||'%' )
+				</if>
+			</if>			
+	</sql>
+	
+	<select id="selectPointCnt" parameterType="Map" resultType="int">
+		SELECT count(1) FROM ( <include refid="selectPointSql"/> )
+	</select>
+	
+	<select id="selectPointList" parameterType="Map" resultType="HashMap">
+		SELECT * FROM ( <include refid="selectPointSql"/> ) WHERE RNUM BETWEEN #{firstRow} AND #{lastRow} ORDER BY RNUM
+	</select>
+
+	<sql id="selectPointViewSql">
+		SELECT
+			a.POINT
+			, a.REG_DTM
+			, decode(substr(a.BID,1,2),'BD','TR',substr(a.BID,1,2)) AS TB
+			, a.BID
+			, decode(substr(a.BID,1,2),'VC',vc.TITLE,'PT',pt.TITLE,'BD',tr.TITLE,'HA',ha.TITLE,'') AS TITLE
+			, ps.POINT_GUBUN_NM
+			, ps.POINT_CLASS_NM
+			, row_number() over( ORDER BY a.REG_DTM DESC ) AS RNUM
+		FROM
+			KM_POINT a
+			LEFT JOIN KM_POINT_SET ps ON ps.POINT_TYP=a.POINT_TYP
+			LEFT JOIN KM_VC vc ON vc.VC_ID = a.BID
+			LEFT JOIN KM_PT pt ON pt.PT_ID = a.BID
+			LEFT JOIN KM_BOARD tr ON tr.BD_TYPE_CD = 'BOD_00001' AND tr.BD_ID = a.BID
+			LEFT JOIN KM_HA ha ON ha.HA_ID = a.BID
+		WHERE
+			a.MID = #{mid}
+	</sql>
+	
+	<select id="selectPointViewCnt" parameterType="Map" resultType="int">
+		SELECT count(1) FROM ( <include refid="selectPointViewSql"/> )
+	</select>
+	
+	<select id="selectPointViewList" parameterType="Map" resultType="HashMap">
+		SELECT * FROM ( <include refid="selectPointViewSql"/> ) WHERE RNUM BETWEEN #{firstRow} AND #{lastRow} ORDER BY RNUM
+	</select>
+
+	<select id="selectPointTypeList" parameterType="String" resultType="HashMap">
+		SELECT
+			a.POINT_TYP
+			, a.POINT_GUBUN_NM
+		FROM
+			 KM_POINT_SET a
+		WHERE 
+			a.POINT_TYP like #{pointTyp}||'%'
+		ORDER BY a.POINT_TYP
+	</select>
+	
+	<insert id="insertPoint" parameterType="Map">
+		INSERT INTO KM_POINT ( 
+			POINT_SEQ
+			,POINT_TYP
+			,MID
+			,BID
+			,CONT
+			,POINT
+			,REG_ID
+			,REG_DTM 
+		)
+		VALUES ( 
+			SEQ_KM_POINT.nextval
+			, #{pointTyp}
+			, #{mid}
+			, ''
+			, ''
+			, #{point}
+			, #{regId}
+			, sysdate
+		)
+	</insert>
+	
+	<sql id="selectPointMemberSql">
+		SELECT
+			a.MID
+			,a.MEMBER_NM
+			, decode(substr(div.DIV_CD,1,4),'TEA_',div.CD_NM,'') AS TEAM_NM	
+			, decode(substr(div.DIV_CD,1,4),'CEN_',div.CD_NM,'TEA_',div2.CD_NM,'') AS CENTER_NM	
+			, NVL(poi.SUM_POINT,0) AS SUM_POINT			
+			, row_number() over(ORDER BY NVL(poi.SUM_POINT,0) DESC) AS RNUM
+		FROM
+			KM_MEMBER a
+			LEFT JOIN KM_DIV_CD div ON div.DIV_CD=a.DIV_CD
+			LEFT JOIN KM_DIV_CD div2 ON div2.DIV_CD=div.UPPER_CD
+			LEFT JOIN (
+				SELECT
+					MID
+					, NVL(SUM(POINT),0) AS SUM_POINT
+				FROM
+					KM_POINT
+				WHERE
+					1=1
+					<if test=' searchSumType == "acc" '>
+						AND POINT &gt; 0
+						<if test=' searchStart != null and searchStart != "" '>
+							AND trunc(REG_DTM) &gt;= to_date(#{searchStart}, 'YYYY-MM-DD')
+						</if>
+						<if test=' searchEnd != null and searchEnd != "" '>
+							AND trunc(REG_DTM) &lt;= to_date(#{searchEnd}, 'YYYY-MM-DD')
+						</if>						
+					</if>
+				GROUP BY MID
+			) poi ON poi.MID=a.MID		
+		WHERE
+			a.DBSTS='O'
+			AND a.ADM_YN='N'
+			<if test=' searchText != null and searchText != "" '>
+				<if test=' searchType == "memberNm" '>
+					AND a.MEMBER_NM like '%'||#{searchText}||'%'
+				</if>			
+				<if test=' searchType == "mid" '>
+					AND a.MID like '%'||#{searchText}||'%'
+				</if>
+				<if test=' searchType == null or searchType == "" '>
+					AND ( a.MEMBER_NM like '%'||#{searchText}||'%' OR a.MID like '%'||#{searchText}||'%' )
+				</if>
+			</if>			
+	</sql>
+	
+	<select id="selectPointMemberCnt" parameterType="Map" resultType="int">
+		SELECT count(1) FROM ( <include refid="selectPointMemberSql"/> )
+	</select>
+	
+	<select id="selectPointMemberList" parameterType="Map" resultType="HashMap">
+		SELECT * FROM ( <include refid="selectPointMemberSql"/> ) WHERE RNUM BETWEEN #{firstRow} AND #{lastRow} ORDER BY RNUM
+	</select>	
+	
+	<select id="selectPointSet" parameterType="Map" resultType="HashMap">
+		SELECT
+	    	NVL(SUM(DECODE(POINT_TYP,'POI_VC_REG',POINT_SET,0)), 0) AS POI_VC_REG
+    		, NVL(SUM(DECODE(POINT_TYP,'POI_PT_SUBMIT',POINT_SET,0)), 0) AS POI_PT_SUBMIT
+     		, NVL(SUM(DECODE(POINT_TYP,'POI_TR_VIEW',POINT_SET,0)), 0) AS POI_TR_VIEW
+      		, NVL(SUM(DECODE(POINT_TYP,'POI_TR_REG',POINT_SET,0)), 0) AS POI_TR_REG
+      		, NVL(SUM(DECODE(POINT_TYP,'POI_OTHER_VIEW',POINT_SET,0)), 0) AS POI_OTHER_VIEW
+      		, NVL(SUM(DECODE(POINT_TYP,'POI_OTHER_REG',POINT_SET,0)), 0) AS POI_OTHER_REG
+      		, NVL(SUM(DECODE(POINT_TYP,'POI_HA_REG',POINT_SET,0)), 0) AS POI_HA_REG
+		FROM
+    		KM_POINT_SET
+		WHERE
+			POINT_TYP IN('POI_VC_REG','POI_PT_SUBMIT','POI_TR_VIEW','POI_TR_REG','POI_OTHER_VIEW','POI_OTHER_REG','POI_HA_REG')
+	</select>
+	
+	<update id="updatePointSet" parameterType="Map">
+		UPDATE
+			KM_POINT_SET
+		SET
+			POINT_SET = #{pointSet}
+			, UPD_ID = #{mid}
+			, UPD_DTM = sysdate
+		WHERE
+			POINT_TYP = #{pointTyp}
+	</update>
+</mapper>

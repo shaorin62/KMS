@@ -1,0 +1,177 @@
+<?xml version="1.0" encoding="UTF-8" ?>  
+<!DOCTYPE mapper  PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+
+<mapper namespace="com.skplanet.kms.upload">
+
+	<insert id="insertUpload" parameterType="Map">
+		<selectKey keyProperty="uploadSeq" resultType="String" order="BEFORE">
+			SELECT SEQ_KM_UPLOAD_SEQ.NEXTVAL FROM DUAL
+		</selectKey>
+		INSERT INTO KM_UPLOAD 
+		( 
+			UPLOAD_SEQ
+			,FILE_PATH
+			,ORG_FILE_NM
+			,REG_ID
+			,REG_DTM
+			,DBSTS 
+		)
+		VALUES (
+			#{uploadSeq, jdbcType=VARCHAR}
+			, #{filePath, jdbcType=VARCHAR}
+			, #{orgFileNm, jdbcType=VARCHAR}
+			, #{mid, jdbcType=VARCHAR}
+			, sysdate
+			, 'O'
+		)
+	</insert>
+
+	<select id="selectAttachList" parameterType="Map" resultType="HashMap">
+		SELECT
+			a.BID
+			, a.UPLOAD_SEQ
+			, a.ATTACH_TYP
+			, upl.FILE_PATH
+			, upl.ORG_FILE_NM
+			, upl.REG_ID
+			, upl.REG_DTM
+		FROM
+			KM_ATTACH a
+			LEFT JOIN KM_UPLOAD upl ON upl.UPLOAD_SEQ = a.UPLOAD_SEQ
+		WHERE
+			a.DBSTS = 'O'
+			AND a.BID = #{bid}
+		ORDER BY a.UPLOAD_SEQ
+	</select>
+	
+		<select id="selectAttachListPTRow" parameterType="Map" resultType="HashMap">
+		
+		SELECT 
+		 MAX(DECODE(ATTACH_TYP,'ATT_PT_01',ORG_FILE_NM,'')) AS ATT_PT_01
+		, MAX(DECODE(ATTACH_TYP,'ATT_PT_02',ORG_FILE_NM,'')) AS ATT_PT_02
+		, MAX(DECODE(ATTACH_TYP,'ATT_PT_03',ORG_FILE_NM,'')) AS ATT_PT_03
+		, MAX(DECODE(ATTACH_TYP,'ATT_PT_04',ORG_FILE_NM,'')) AS ATT_PT_04
+		, MAX(DECODE(ATTACH_TYP,'ATT_PT_05',ORG_FILE_NM,'')) AS ATT_PT_05
+		, MAX(DECODE(ATTACH_TYP,'ATT_PT_06',ORG_FILE_NM,'')) AS ATT_PT_06
+		, MAX(DECODE(ATTACH_TYP,'ATT_PT_99',ORG_FILE_NM,'')) AS ATT_PT_07
+		 FROM (
+		    SELECT A.ATTACH_TYP , UPL.ORG_FILE_NM 
+		    FROM KM_ATTACH A LEFT JOIN KM_UPLOAD UPL ON UPL.UPLOAD_SEQ = A.UPLOAD_SEQ 
+		    WHERE A.DBSTS = 'O' AND A.BID = #{bid} AND A.ATTACH_TYP = 'ATT_PT_01'
+		
+		    UNION ALL
+		
+		    SELECT A.ATTACH_TYP , UPL.ORG_FILE_NM 
+		    FROM KM_ATTACH A LEFT JOIN KM_UPLOAD UPL ON UPL.UPLOAD_SEQ = A.UPLOAD_SEQ 
+		    WHERE A.DBSTS = 'O' AND A.BID = #{bid} AND A.ATTACH_TYP = 'ATT_PT_02'
+		    
+		    UNION ALL
+		
+		    SELECT A.ATTACH_TYP , UPL.ORG_FILE_NM 
+		    FROM KM_ATTACH A LEFT JOIN KM_UPLOAD UPL ON UPL.UPLOAD_SEQ = A.UPLOAD_SEQ 
+		    WHERE A.DBSTS = 'O' AND A.BID = #{bid} AND A.ATTACH_TYP = 'ATT_PT_03'
+		    
+		    UNION ALL
+		
+		    SELECT A.ATTACH_TYP , UPL.ORG_FILE_NM 
+		    FROM KM_ATTACH A LEFT JOIN KM_UPLOAD UPL ON UPL.UPLOAD_SEQ = A.UPLOAD_SEQ 
+		    WHERE A.DBSTS = 'O' AND A.BID = #{bid} AND A.ATTACH_TYP = 'ATT_PT_04'
+		    
+		    UNION ALL
+		
+		    SELECT A.ATTACH_TYP , UPL.ORG_FILE_NM 
+		    FROM KM_ATTACH A LEFT JOIN KM_UPLOAD UPL ON UPL.UPLOAD_SEQ = A.UPLOAD_SEQ 
+		    WHERE A.DBSTS = 'O' AND A.BID = #{bid} AND A.ATTACH_TYP = 'ATT_PT_05'
+		    
+		    UNION ALL
+		
+		    SELECT A.ATTACH_TYP , UPL.ORG_FILE_NM 
+		    FROM KM_ATTACH A LEFT JOIN KM_UPLOAD UPL ON UPL.UPLOAD_SEQ = A.UPLOAD_SEQ 
+		    WHERE A.DBSTS = 'O' AND A.BID = #{bid} AND A.ATTACH_TYP = 'ATT_PT_06'
+		    
+		    UNION ALL
+		
+		    SELECT A.ATTACH_TYP , UPL.ORG_FILE_NM 
+		    FROM KM_ATTACH A LEFT JOIN KM_UPLOAD UPL ON UPL.UPLOAD_SEQ = A.UPLOAD_SEQ 
+		    WHERE A.DBSTS = 'O' AND A.BID = #{bid} AND A.ATTACH_TYP = 'ATT_PT_99'
+		
+		)A ORDER BY ATTACH_TYP
+		
+	</select>
+
+	<select id="selectAttach" parameterType="Map" resultType="HashMap">
+		SELECT
+			a.BID
+			, a.UPLOAD_SEQ
+			, a.ATTACH_TYP
+			, upl.FILE_PATH
+			, upl.ORG_FILE_NM
+			, upl.REG_ID
+			, upl.REG_DTM
+			, decode(substr(a.BID,1,2)
+				,'BD',decode(bd.BD_TYPE_CD,'BOD_00001','TR','BOD_00002','CD','BOD_00004','KC')
+				, substr(a.BID,1,2)) AS TB
+			, bd.TR_CATE_CD
+			, bd.REG_ID AS BD_REG_ID
+		FROM
+			KM_ATTACH a
+			LEFT JOIN KM_UPLOAD upl ON upl.UPLOAD_SEQ = a.UPLOAD_SEQ
+			LEFT JOIN KM_BOARD bd ON bd.BD_ID = a.BID
+		WHERE
+			a.DBSTS = 'O'
+			AND a.BID = #{bid} AND a.UPLOAD_SEQ = #{uploadSeq}
+	</select>
+	
+	<insert id="insertDownLog">
+		<selectKey keyProperty="logSeq" resultType="String" order="BEFORE">
+			SELECT SEQ_KM_LOG.NEXTVAL FROM DUAL
+		</selectKey>	
+		INSERT INTO KM_LOG ( 
+			LOG_SEQ
+			,LOG_TYP_CD
+			,BCD
+			,BID
+			,UPLOAD_SEQ
+			,REG_ID
+			,REG_DTM 
+		)
+		VALUES ( 
+			#{logSeq}
+			, 'LOG_TYP_DOWNLOAD'
+			, #{bcd} 
+			, #{bid}
+			, #{uploadSeq}
+			, #{regId}
+			, sysdate
+		)	
+	</insert>
+	
+	<update id="deleteAttach" parameterType="Map">
+		UPDATE 
+			KM_ATTACH
+		SET
+			DBSTS = 'D'
+		WHERE
+			BID = #{bid}
+			AND ATTACH_TYP = #{attachTyp}
+	</update>
+	
+	<update id="insertAttach" parameterType="Map">
+		MERGE INTO 
+			KM_ATTACH a
+		USING ( SELECT #{bid} AS BID, #{uploadSeq} AS UPLOAD_SEQ FROM DUAL ) b
+		ON ( a.BID=b.BID AND a.UPLOAD_SEQ=b.UPLOAD_SEQ )
+		WHEN MATCHED THEN
+			UPDATE
+				SET 
+					DBSTS='O'
+		WHEN NOT MATCHED THEN
+			INSERT (
+				BID, UPLOAD_SEQ, ATTACH_TYP, DBSTS
+			)
+			VALUES (
+				b.BID, b.UPLOAD_SEQ, #{attachTyp}, 'O'
+			)
+	</update>
+		
+</mapper>

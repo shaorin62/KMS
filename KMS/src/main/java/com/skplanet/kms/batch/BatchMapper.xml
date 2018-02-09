@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8" ?>  
+<!DOCTYPE mapper  PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+
+<mapper namespace="com.skplanet.kms.batch">
+
+	<select id="selectMailMemberList" parameterType="Map" resultType="HashMap">
+		SELECT
+			a.MID
+			, a.MEMBER_NM
+			, a.EMAIL
+		FROM
+			KM_MEMBER a
+		WHERE
+			a.DBSTS='O'
+			AND LOGIN_ABLE_YN = 'Y'
+			AND MID IN (
+				SELECT 
+					pt.REG_ID
+				FROM 
+					KM_PT pt
+				WHERE
+					pt.DBSTS='O'
+					AND pt.SUBMIT_YN='Y'
+					AND pt.DOC_OPEN_DT IN ( to_char(SYSDATE,'YYYYMMDD')+7, to_char(SYSDATE,'YYYYMMDD')+1, to_char(SYSDATE,'YYYYMMDD') )
+		)
+	</select>
+	
+	<select id="selectMailPtList" parameterType="String" resultType="HashMap">
+		SELECT
+			pt.PT_ID
+			, pt.TITLE
+			, to_char(to_date(pt.DOC_OPEN_DT,'YYYYMMDD'),'YYYY.MM.DD') AS DOC_OPEN_DT
+			, pt.REG_ID
+		FROM 
+			KM_PT pt
+		WHERE
+			pt.DBSTS='O'
+			AND pt.SUBMIT_YN='Y'
+			AND pt.DOC_OPEN_DT IN ( to_char(SYSDATE,'YYYYMMDD')+7, to_char(SYSDATE,'YYYYMMDD')+1, to_char(SYSDATE,'YYYYMMDD') )
+			AND pt.REG_ID = #{mid}
+		ORDER BY pt.DOC_OPEN_DT DESC, pt.PT_ID DESC
+	</select>
+	
+</mapper>

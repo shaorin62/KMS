@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="UTF-8" ?>  
+<!DOCTYPE mapper  PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+
+<mapper namespace="com.skplanet.kms.kc">
+<resultMap type="HashMap" id="kcMap">
+		<result property="CONT" column="CONT" javaType="java.lang.String" jdbcType="CLOB" />
+	</resultMap>
+
+<delete id="deleteKc" parameterType="Map">
+		
+		UPDATE KM_BOARD
+			SET
+		  	DBSTS ='D'
+		  WHERE
+		  	BD_ID  = #{bdId, jdbcType=VARCHAR}
+		
+
+</delete>
+	
+<sql id="selectKcSql">
+			SELECT 
+					 a.BD_ID
+					,a.BD_TYPE_CD
+					,typ.CD_NM AS BD_TYPE_NM
+					,a.TITLE
+					,a.CONT
+					,a.LINK_URL
+					,a.REG_ID
+					,a.REG_DTM
+					,a.UPD_ID
+					,a.UPD_DTM
+					,a.DBSTS
+					,ROW_NUMBER() OVER(
+								ORDER BY a.REG_DTM DESC
+					) AS RNUM
+					,mem.MEMBER_NM 
+					,att.UPLOAD_SEQ
+          			,att.ATTACH_TYP
+          			,up.FILE_PATH
+          			,up.ORG_FILE_NM
+          			,mem.KC_APPOINT_YN
+			FROM 
+				KM_BOARD a
+				LEFT JOIN KM_MEMBER mem ON mem.MID=a.REG_ID
+				LEFT JOIN KM_ADM_CD typ ON typ.ADM_CD=a.BD_TYPE_CD 
+				LEFT JOIN KM_ADM_CD cat ON cat.ADM_CD=a.TR_CATE_CD
+				LEFT JOIN (
+					SELECT * FROM
+					(
+						SELECT
+							BID
+							, UPLOAD_SEQ
+							, ATTACH_TYP
+							, row_number() over(partition by BID order by UPLOAD_SEQ desc) AS RNUM 
+						FROM
+							KM_ATTACH
+						WHERE
+							DBSTS='O'
+					) WHERE RNUM=1
+				) att ON att.BID = a.BD_ID
+				LEFT JOIN KM_UPLOAD up ON att.UPLOAD_SEQ = up.UPLOAD_SEQ
+			WHERE
+				a.DBSTS = 'O'
+				AND a.BD_TYPE_CD ='BOD_00004'
+		<if test=' searchRegId != null and searchRegId != "" '>
+				AND a.REG_ID = #{searchRegId, jdbcType=VARCHAR}
+		</if>
+	</sql>
+	
+	<select id="selectKcCnt" parameterType="Map" resultType="int">
+		SELECT count(1) FROM (<include refid="selectKcSql"/>)
+	</select>
+	
+	<select id="selectKcList" parameterType="Map" resultMap="kcMap">
+		SELECT * FROM (<include refid="selectKcSql"/> ) WHERE RNUM BETWEEN #{firstRow} AND #{lastRow} ORDER BY RNUM
+	</select>
+	<select id="oneImgKc" parameterType="Map" resultMap="kcMap">
+	SELECT 
+		to_char(UPLOAD_SEQ) as UPLOAD_SEQ
+		,FILE_PATH
+		,ORG_FILE_NM
+	 FROM KM_UPLOAD WHERE UPLOAD_SEQ = #{oneImgNo}
+	</select>
+	
+	 <select id="selectKcOne" parameterType="Map" resultMap="kcMap">
+			SELECT 
+					 a.BD_ID
+					,a.BD_TYPE_CD
+					,typ.CD_NM AS BD_TYPE_NM
+					,a.TITLE
+					,a.CONT
+					,a.LINK_URL
+					,a.REG_ID
+					,a.REG_DTM
+					,a.UPD_ID
+					,a.UPD_DTM
+					,a.DBSTS
+					,mem.MEMBER_NM 
+          			,att.UPLOAD_SEQ
+          			,att.ATTACH_TYP
+          			,up.FILE_PATH
+          			,up.ORG_FILE_NM
+          			, log.SUPER_YN
+			FROM 
+				KM_BOARD a
+				LEFT JOIN KM_MEMBER mem ON mem.MID=a.REG_ID
+				LEFT JOIN KM_ADM_CD typ ON typ.ADM_CD=a.BD_TYPE_CD
+				LEFT JOIN (
+					SELECT * FROM
+					(
+						SELECT
+							BID
+							, UPLOAD_SEQ
+							, ATTACH_TYP
+							, row_number() over(partition by BID order by UPLOAD_SEQ desc) AS RNUM 
+						FROM
+							KM_ATTACH
+						WHERE
+							DBSTS='O'
+					) WHERE RNUM=1
+				) att ON att.BID = a.BD_ID
+        		LEFT JOIN KM_UPLOAD up ON att.UPLOAD_SEQ = up.UPLOAD_SEQ
+        		LEFT JOIN KM_MEMBER log ON log.MID=#{mid}
+			WHERE
+				a.DBSTS = 'O'
+				AND a.BD_ID = #{bdId, jdbcType=VARCHAR}
+	</select>
+	
+	<insert id="insertKc" parameterType="Map" >
+		<selectKey keyProperty="bdId" resultType="String" order="BEFORE">
+			SELECT 'BD'||LPAD(SEQ_KM_BD_ID.NEXTVAL,8,'0') FROM DUAL
+		</selectKey>
+		INSERT INTO KM_BOARD(
+			BD_ID
+			,BD_TYPE_CD
+			,TOP_YN
+			,TITLE
+			,CONT
+			,LINK_URL
+			,REG_ID
+			,REG_DTM
+			,UPD_ID
+			,UPD_DTM
+			,DBSTS
+		)VALUES(
+			#{bdId, jdbcType=VARCHAR}
+			,'BOD_00004'
+			,'N'
+			,#{title, jdbcType=VARCHAR}
+			,#{cont}
+			,#{linkUrl, jdbcType=VARCHAR}
+			,#{mid, jdbcType=VARCHAR}
+			,sysdate
+			,#{mid, jdbcType=VARCHAR}
+			,sysdate
+			,'O'
+		)
+	</insert>
+	
+	<update id="updateKcHit" parameterType="Map">
+		UPDATE KM_BOARD
+			SET
+				HIT = nvl(HIT,0)+1
+		WHERE
+				BD_ID = #{bdId}
+	</update>
+	
+	<update id="updateKc" parameterType="Map">
+		UPDATE KM_BOARD
+			SET 
+				TITLE = #{title, jdbcType=VARCHAR}
+				,CONT = #{cont}
+				,LINK_URL = #{linkUrl, jdbcType=VARCHAR}
+				,UPD_ID = #{mid}
+				,UPD_DTM = sysdate
+			WHERE
+			BD_ID = #{bdId}
+	</update>
+	 
+</mapper>	

@@ -1,0 +1,382 @@
+<?xml version="1.0" encoding="UTF-8" ?>  
+<!DOCTYPE mapper  PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+
+<mapper namespace="com.skplanet.kms.admin.member">
+	
+	<sql id="selectAdminSql">
+			SELECT 
+					a.MID
+					,a.MEMBER_NM
+					,a.EMAIL
+					,a.ADM_YN
+					,a.REG_DTM
+					,a.LOGIN_ABLE_YN
+					,ROW_NUMBER() OVER(
+								ORDER BY a.REG_DTM DESC
+					) AS RNUM
+			FROM 
+				KM_MEMBER a
+			WHERE
+				a.DBSTS = 'O'
+				AND a.ADM_YN = 'Y'
+	</sql>
+	<select id="selectAdminCnt" parameterType="Map" resultType="int">
+		SELECT count(1) FROM (<include refid="selectAdminSql"/>)
+	</select>
+	<select id="selectAdmMemberList" parameterType="Map" resultType="HashMap">
+		SELECT * FROM (<include refid="selectAdminSql"/> ) WHERE RNUM BETWEEN #{firstRow} AND #{lastRow} ORDER BY RNUM
+	</select>
+	 <select id="selectAdmMemberOne" parameterType="Map" resultType="HashMap">
+			SELECT 
+					a.MID
+					,a.MEMBER_NM
+					,a.BIRTH_DT
+					,a.EMAIL
+					,a.LOGIN_ABLE_YN
+			FROM 
+				KM_MEMBER a
+			WHERE
+				a.DBSTS = 'O'
+				AND a.MID = #{mid, jdbcType=VARCHAR}
+	</select>
+	 <select id="selectAdmMidCheck" parameterType="Map" resultType="int">
+	 SELECT count(1) FROM (
+			SELECT 
+				a.MID
+			FROM 
+				KM_MEMBER a
+			WHERE
+				a.MID = #{mid, jdbcType=VARCHAR}
+				)
+	</select>
+	
+	<insert id="insertAdmMember" parameterType="Map" >
+		INSERT INTO KM_MEMBER(
+			MID
+			,PASSWD
+			,MEMBER_NM
+			,EMAIL
+			,LOGIN_ABLE_YN
+			,REG_ID
+			,REG_DTM
+			,UPD_ID
+			,UPD_DTM
+			,DIV_CD
+			,POS_CD
+			,ADM_YN
+		)VALUES(
+			 #{mid}
+			,#{passwd}
+			,#{memberNm}
+			,#{email}
+			,#{loginAbleYn}
+			,#{sessionId}
+			,sysdate
+			,#{sessionId}
+			,sysdate
+			,#{divCd}
+			,#{posCd}
+			,'Y'
+		)
+	</insert>
+	<update id="updateAdmMember" parameterType="Map">
+		UPDATE KM_MEMBER
+		SET 
+			MEMBER_NM = #{memberNm, jdbcType=VARCHAR}
+			<choose>
+				<when test="passwd == '' or passwd == null">
+				</when>
+				<otherwise>
+				,PASSWD = #{passwd, jdbcType=VARCHAR}	
+				</otherwise>
+			</choose>
+			
+			,EMAIL = #{email, jdbcType=VARCHAR}
+			,UPD_ID = #{sessionMid}
+			,UPD_DTM = sysdate
+			,LOGIN_ABLE_YN = #{loginAbleYn, jdbcType=VARCHAR}
+			,DIV_CD = #{divCd} 
+			,POS_CD = #{posCd}
+		WHERE
+			MID = #{mid}
+	</update>
+	
+	<!-- ************************일반사용자****************************** -->
+	
+<sql id="selectMemberSql">
+			SELECT 
+					a.MID
+					,a.MEMBER_NM
+					,a.POS_CD
+					,a.DIV_CD
+					,TO_DATE(a.BIRTH_DT,'YYYYMMDD') AS BIRTH_DT
+					,a.EMAIL
+					,pos.CD_NM AS POS_NM
+					,div.CD_NM AS DIV_NM
+					,a.CR_APPOINT_YN
+					,a.LOGIN_ABLE_YN
+					,a.ADM_YN
+					,a.REG_ID
+					,a.REG_DTM
+					,a.KC_APPOINT_YN
+					,a.UPD_ID
+					,a.UPD_DTM
+					,a.DBSTS
+					,ROW_NUMBER() OVER(
+						<if test=" searchSort == null or searchSort == '' ">
+							ORDER BY a.REG_DTM DESC,a.ROWID DESC
+						</if>
+						<if test=" searchSort == 'MID' ">
+							ORDER BY a.MID DESC,a.ROWID DESC
+						</if>
+						<if test=" searchSort == 'DIV_NM' ">
+							ORDER BY div.CD_NM DESC,a.ROWID DESC
+						</if>
+						<if test=" searchSort == 'CR_APPOINT_YN' ">
+							ORDER BY a.CR_APPOINT_YN DESC,a.ROWID DESC
+						</if>
+						<if test=" searchSort == 'KC_APPOINT_YN' ">
+							ORDER BY a.KC_APPOINT_Y DESC,a.ROWID DESC
+						</if>
+						<if test=" searchSort == 'LOGIN_ABLE_YN' ">
+							ORDER BY a.LOGIN_ABLE_YN DESC,a.ROWID DESC
+						</if>	
+								
+					) AS RNUM
+			FROM 
+				KM_MEMBER a
+				LEFT JOIN KM_ADM_CD pos ON pos.ADM_CD=a.POS_CD 
+				LEFT JOIN KM_DIV_CD div ON div.DIV_CD=a.DIV_CD
+			WHERE
+				 a.ADM_YN != 'Y'
+				 AND a.DBSTS = 'O'
+				<if test=" searchText != null and searchText != '' ">
+					<if test=" searchType == 'team' ">
+						AND div.CD_NM like '%'||#{searchText}||'%'
+					</if>			
+					<if test=" searchType == 'regNm' ">
+						AND a.MEMBER_NM like '%'||#{searchText}||'%'
+					</if>
+					<if test=" searchType == null or searchType == '' ">
+						AND ( div.CD_NM like '%'||#{searchText}||'%' OR a.MEMBER_NM like '%'||#{searchText}||'%')
+					</if>
+				</if>		
+				
+				<if test=" CR_APPOINT_YN != null and CR_APPOINT_YN != '' ">
+					<if test=" CR_APPOINT_YN == 'CR_APPOINT_Y' ">
+							and a.CR_APPOINT_YN = 'Y'
+					</if>
+					<if test=" CR_APPOINT_YN == 'CR_APPOINT_N' ">
+							and a.CR_APPOINT_YN = 'N'
+					</if>
+				</if>
+				<if test=" KC_APPOINT_YN != null and KC_APPOINT_YN != '' ">
+					<if test=" KC_APPOINT_YN == 'KC_APPOINT_Y' ">
+							and a.KC_APPOINT_YN = 'Y'
+					</if>
+					<if test=" KC_APPOINT_YN == 'KC_APPOINT_N' ">
+							and a.KC_APPOINT_YN = 'N'
+					</if>
+				</if>
+				<if test=" LOGIN_ABLE_YN != null and LOGIN_ABLE_YN != '' ">
+					<if test=" LOGIN_ABLE_YN == 'LOGIN_ABLE_Y' ">
+							and a.LOGIN_ABLE_YN = 'Y'
+					</if>
+					<if test=" LOGIN_ABLE_YN == 'LOGIN_ABLE_N' ">
+							and a.LOGIN_ABLE_YN = 'N'
+					</if>
+				</if>
+				
+				
+				<if test=" searchSort == 'MID' ">
+					ORDER BY a.MID DESC
+				</if>
+				<if test=" searchSort == 'DIV_NM' ">
+					ORDER BY div.CD_NM DESC
+				</if>
+				<if test=" searchSort == 'CR_APPOINT_YN' ">
+					ORDER BY a.CR_APPOINT_YN DESC
+				</if>
+				<if test=" searchSort == 'KC_APPOINT_YN' ">
+					ORDER BY a.KC_APPOINT_YN DESC
+				</if>
+				<if test=" searchSort == 'LOGIN_ABLE_YN' ">
+					ORDER BY a.LOGIN_ABLE_YN DESC
+				</if>	
+	</sql>
+	
+	<select id="selectMemberCnt" parameterType="Map" resultType="int">
+		SELECT count(1) FROM (<include refid="selectMemberSql"/>)
+	</select>
+	
+	<select id="selectMemberList" parameterType="Map" resultType="HashMap">
+		SELECT * FROM (<include refid="selectMemberSql"/> ) WHERE RNUM BETWEEN #{firstRow} AND #{lastRow} 
+			<if test=" searchSort == null or searchSort == '' ">
+				ORDER BY RNUM DESC
+			</if>
+		
+	</select>
+	
+	 <select id="selectMemberOne" parameterType="Map" resultType="HashMap">
+				SELECT 
+					a.MID
+					,a.MEMBER_NM
+					,a.POS_CD
+					,a.DIV_CD
+					,a.BIRTH_DT
+					,a.EMAIL
+					,pos.CD_NM AS POS_NM
+					,a.CR_APPOINT_YN
+					,a.LOGIN_ABLE_YN
+					,a.ADM_YN
+					,a.REG_ID
+					,a.REG_DTM
+					,a.KC_APPOINT_YN
+					,a.UPD_ID
+					,a.UPD_DTM
+					,a.DBSTS
+					,a.SUPER_YN
+					,ROW_NUMBER() OVER(
+								ORDER BY a.REG_DTM DESC
+					) AS RNUM
+			FROM 
+				KM_MEMBER a
+				LEFT JOIN KM_ADM_CD pos ON pos.ADM_CD=a.POS_CD 
+			WHERE
+				 a.MID = #{mid, jdbcType=VARCHAR}
+	</select>
+	
+		<!-- 본부선택시 해방본부별 팀 가져오기 -->
+	<select id="selectOnlyTeamCodeList" parameterType="String" resultType="HashMap">
+		SELECT
+			DIV_CD AS CD
+			, CD_NM AS NM
+		FROM KM_DIV_CD
+		WHERE
+			UPPER_CD=#{upperCd}
+		ORDER BY NM DESC
+		
+	</select>
+	<!-- 팀별/본부별 해당팀가져오기 -->
+	<select id="selectTeamCodeList" parameterType="String" resultType="HashMap">
+	SELECT
+			DIV_CD AS CD
+			, CD_NM AS NM
+		FROM KM_DIV_CD a
+		WHERE
+			a.DBSTS = 'O'
+			AND a.DIV_CD LIKE '%'||#{divCd}||'%'
+		ORDER BY NM
+	</select>	
+	
+	<select id="selectExcelJikgupList" resultType="HashMap">
+		SELECT DIV_CD AS CD,CD_NM FROM KM_DIV_CD
+	</select>
+	<select id="selectExcelPosList" resultType="HashMap">
+		SELECT ADM_CD AS CD,CD_NM FROM KM_ADM_CD WHERE UPPER_CD = 'POS_CD'
+	</select>
+	<!-- 부문 / 본부 / 팀별 셀렉트 -->
+	<select id="selectMemberJikgupList" parameterType="Map" resultType="HashMap">
+		SELECT DIV_CD,CD_NM
+			FROM KM_DIV_CD 
+			START WITH DIV_CD = #{divCd}
+			CONNECT BY PRIOR  UPPER_CD = DIV_CD
+	</select>
+	<!-- 기존 등록된사용자인가 -->
+	 <select id="selectMidCheck" parameterType="Map" resultType="int">
+	 SELECT count(1) FROM (
+			SELECT 
+				a.MID
+			FROM 
+				KM_MEMBER a
+			WHERE
+				a.MID = #{mid, jdbcType=VARCHAR}
+				)
+	</select>
+	
+	<insert id="insertMember" parameterType="Map" >
+		INSERT INTO KM_MEMBER(
+			MID
+			,PASSWD
+			,MEMBER_NM
+			,POS_CD
+			,DIV_CD
+			,BIRTH_DT
+			,EMAIL
+			,CR_APPOINT_YN
+			,REG_ID
+			,REG_DTM
+			,UPD_ID
+			,UPD_DTM
+			,KC_APPOINT_YN
+			,SUPER_YN
+			,LOGIN_ABLE_YN
+		)VALUES(
+			 #{mid}
+			,#{passwd}
+			,#{memberNm}
+			,#{posCd}
+			,#{divCd}
+			,#{birthDt}
+			,#{email}
+			,#{crAppointYn}
+			,#{sessionId}
+			,sysdate
+			,#{sessionId}
+			,sysdate
+			,#{kcAppointYn}
+			,#{superYn}
+			,#{loginAbleYn}
+		)
+	</insert>
+	<update id="insertMemberExcel" parameterType="Map" >
+		MERGE INTO 
+			KM_MEMBER a
+		USING DUAL
+		ON ( a.MID = #{mid})
+		WHEN MATCHED THEN
+			UPDATE
+				SET 
+			PASSWD         = #{passwd}          
+			,MEMBER_NM     = #{memberNm}        
+			,POS_CD        = #{posCd}           
+			,DIV_CD        = #{divCd}           
+			,BIRTH_DT      = #{birthDt}         
+			,EMAIL         = #{email}           
+			,CR_APPOINT_YN = #{crAppointYn}     
+			,UPD_ID        = #{sessionId}       
+			,UPD_DTM       = sysdate            
+			,KC_APPOINT_YN = #{kcAppointYn}     
+			,DBSTS='O'
+			
+		WHEN NOT MATCHED THEN
+			INSERT (
+				MID			,PASSWD			,MEMBER_NM			,POS_CD			,DIV_CD
+			,BIRTH_DT		,EMAIL			,CR_APPOINT_YN		,REG_ID			,REG_DTM
+			,UPD_ID			,UPD_DTM		,KC_APPOINT_YN			
+			)
+			VALUES (
+			#{mid}			,#{passwd}		,#{memberNm}		,#{posCd}		,#{divCd}
+			,#{birthDt}		,#{email}		,#{crAppointYn}		,#{sessionId}	,sysdate
+			,#{sessionId}	,sysdate		,#{kcAppointYn}
+			)
+	</update>
+	<update id="updateMember" parameterType="Map">
+		UPDATE KM_MEMBER
+		SET 
+			MEMBER_NM = #{memberNm, jdbcType=VARCHAR}
+			,POS_CD = #{posCd, jdbcType=VARCHAR}
+			,DIV_CD = #{divCd, jdbcType=VARCHAR}
+			,BIRTH_DT = #{birthDt, jdbcType=VARCHAR}
+			,EMAIL = #{email, jdbcType=VARCHAR}
+			,CR_APPOINT_YN = #{crAppointYn, jdbcType=VARCHAR}
+			,UPD_ID = #{sessionMid}
+			,UPD_DTM = sysdate
+			,LOGIN_ABLE_YN = #{loginAbleYn, jdbcType=VARCHAR}
+			,KC_APPOINT_YN = #{kcAppointYn, jdbcType=VARCHAR}
+			,SUPER_YN = #{superYn, jdbcType=VARCHAR}
+		WHERE
+			MID = #{mid}
+	</update>
+	
+</mapper>	

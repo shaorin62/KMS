@@ -1,0 +1,438 @@
+<?xml version="1.0" encoding="UTF-8" ?>  
+<!DOCTYPE mapper  PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+
+<mapper namespace="com.skplanet.kms.pt">
+
+	<!-- 본인 작성 또는 조회조건 만족 -->
+	<sql id="selectPtSql">
+		SELECT 
+			a.PT_ID
+			, a.UPPER_PT_ID
+			, a.TITLE
+			, a.CLIENT_CD
+			, cli.CD_NM AS CLIENT_NM
+			, a.ITEM
+			, a.BIZ_CD
+			, biz.CD_NM AS BIZ_NM	
+			, a.PT_TYP_CD	
+			, ptt.CD_NM AS PT_TYP_NM
+			, a.AD_BUDGET			
+			, a.PT_RESULT_CD
+			, res.CD_NM AS PT_RESULT_NM
+			, NVL(a.HIT,0) AS HIT
+			, a.REG_ID
+			, mem.MEMBER_NM AS REG_NM
+			, a.REG_DTM
+			, decode(substr(div.DIV_CD,1,4),'TEA_',div.CD_NM,'') AS REG_TEAM_NM	
+			, decode(substr(div.DIV_CD,1,4),'CEN_',div.CD_NM,'TEA_',div2.CD_NM,'') AS REG_CENTER_NM	
+			, a.SUBMIT_YN
+			, decode(a.SUBMIT_YN,'Y','제출','임시저장') AS SUBMIT_NM
+			, ROWNUM AS RNUM 
+			, LEVEL AS LVL
+			, riv.RIVAL_NMS
+			, a.PT_CATE_CD
+		FROM 
+			KM_PT a
+			LEFT JOIN KM_ADM_CD cli ON cli.UPPER_CD='CLIENT_CD' AND cli.ADM_CD=a.CLIENT_CD 			
+			LEFT JOIN KM_ADM_CD biz ON biz.UPPER_CD='BIZ_CD' AND biz.ADM_CD=a.BIZ_CD
+			LEFT JOIN KM_ADM_CD ptt ON ptt.UPPER_CD='PT_TYP_CD' AND ptt.ADM_CD=a.PT_TYP_CD			
+			LEFT JOIN KM_ADM_CD res ON res.UPPER_CD='PT_RESULT_CD' AND res.ADM_CD=a.PT_RESULT_CD
+			LEFT JOIN KM_MEMBER mem ON mem.MID=a.REG_ID
+			LEFT JOIN KM_DIV_CD div ON div.DIV_CD=mem.DIV_CD
+			LEFT JOIN KM_DIV_CD div2 ON div2.DIV_CD=div.UPPER_CD		
+			LEFT JOIN KM_MEMBER log ON log.MID=#{mid}
+			LEFT JOIN (
+				SELECT 
+					PT_ID
+				  , ltrim(max(sys_connect_by_path(RIVAL_NM,', ')),', ') AS RIVAL_NMS
+				FROM
+					(
+				    SELECT
+				      a.PT_ID
+				      , a.RIVAL_CD
+				      , b.CD_NM AS RIVAL_NM
+				      , ROW_NUMBER() OVER(PARTITION BY a.PT_ID ORDER BY a.DISP_ORD) AS rn
+				    FROM 
+				      KM_PT_RIVAL a
+				      LEFT JOIN KM_ADM_CD b ON b.UPPER_CD='RIVAL_CD' AND b.ADM_CD=a.RIVAL_CD
+				  )
+				start with rn = 1
+				connect by prior rn = rn - 1
+				and prior PT_ID = PT_ID
+				GROUP BY PT_ID			
+			) riv ON riv.PT_ID = a.PT_ID
+		WHERE
+			a.DBSTS = 'O'
+			AND (
+				a.REG_ID = #{mid, jdbcType=VARCHAR}
+				OR
+				log.SUPER_YN='Y'
+				OR
+				(
+					a.SUBMIT_YN = 'Y'
+					AND a.DOC_OPEN_DT IS NOT NULL
+					AND a.DOC_OPEN_DT &lt;= to_char(sysdate, 'YYYYMMDD')
+				)
+			)		
+			<if test=' searchRegId != null and searchRegId != "" '>
+				AND a.REG_ID = #{searchRegId, jdbcType=VARCHAR}
+			</if>
+			<if test=' searchBizCd != null and searchBizCd != "" '>
+				AND a.BIZ_CD = #{searchBizCd}
+			</if>
+			<if test=' searchPtResultCd != null and searchPtResultCd != "" '>
+				AND a.PT_RESULT_CD = #{searchPtResultCd}
+			</if>
+			<if test=' searchRivalCd != null and searchRivalCd != "" '>
+				AND EXISTS (
+					SELECT RIVAL_CD 
+					FROM KM_PT_RIVAL 
+					WHERE DBSTS='O' AND PT_ID=a.PT_ID AND RIVAL_CD=#{searchRivalCd}
+				)
+			</if>
+			<if test=' searchStart != null and searchStart != "" '>
+				AND trunc(a.REG_DTM) &gt;= to_date(#{searchStart}, 'YYYY-MM-DD')
+			</if>
+			<if test=' searchEnd != null and searchEnd != "" '>
+				AND trunc(a.REG_DTM) &lt;= to_date(#{searchEnd}, 'YYYY-MM-DD')
+			</if>
+			<if test=' searchText != null and searchText != "" '>
+				<choose>
+					<when test=' searchType == "title" '>
+						AND a.TITLE like '%'||#{searchText}||'%'
+					</when>			
+					<when test=' searchType == "regNm" '>
+						AND mem.MEMBER_NM like '%'||#{searchText}||'%'
+					</when>
+					<when test=' searchType == "clientNm" '>
+						AND cli.CD_NM like '%'||#{searchText}||'%'
+					</when>
+					<when test=' searchType == null or searchType == "" '>
+						AND ( a.TITLE like '%'||#{searchText}||'%' OR mem.MEMBER_NM like '%'||#{searchText}||'%' OR cli.CD_NM like '%'||#{searchText}||'%' )
+					</when>
+					<otherwise>
+						AND 1=0
+					</otherwise>
+				</choose>
+			</if>
+			<if test="ptCateCd != null and ptCateCd != '' ">
+				AND a.PT_CATE_CD = #{ptCateCd}
+			</if>
+				
+			START WITH a.UPPER_PT_ID IS NULL
+			connect BY PRIOR a.PT_ID = a.UPPER_PT_ID
+			<choose>
+				<when test="orderBy=='hit' ">
+					ORDER SIBLINGS BY nvl(a.HIT,0) DESC, a.REG_DTM DESC
+				</when>
+				<otherwise>
+					ORDER SIBLINGS BY a.REG_DTM DESC
+				</otherwise>
+			</choose>					
+	</sql>
+
+	<select id="selectPtCnt" parameterType="Map" resultType="int">
+		SELECT count(1) FROM ( <include refid="selectPtSql"/> )
+	</select>
+	
+	<select id="selectPtList" parameterType="Map" resultType="HashMap">
+		SELECT * FROM ( <include refid="selectPtSql"/> ) WHERE RNUM BETWEEN #{firstRow} AND #{lastRow} ORDER BY RNUM
+	</select>
+
+	<resultMap id="ptMap" type="HashMap">
+    	<result property="PT_CONT" column="PT_CONT" javaType="java.lang.String" jdbcType="CLOB" />
+	</resultMap>
+	
+	<select id="selectPt" parameterType="Map" resultMap="ptMap">
+		SELECT 
+			a.PT_ID
+			, a.UPPER_PT_ID
+			, a.TITLE
+			, a.CLIENT_CD
+			, cli.CD_NM AS CLIENT_NM
+			, a.ITEM
+			, a.BIZ_CD
+			, biz.CD_NM AS BIZ_NM	
+			, to_date(OT_DT,'YYYYMMDD') AS OT_DT
+			, to_date(PT_DT,'YYYYMMDD') AS PT_DT
+			, a.PT_TYP_CD	
+			, ptt.CD_NM AS PT_TYP_NM
+			, a.AD_BUDGET
+			, a.CO_ATTEND
+			, a.AD_ATTEND
+			, to_date(a.CONT_START_DT,'YYYYMMDD') AS CONT_START_DT
+			, to_char(to_date(a.CONT_START_DT,'YYYYMMDD'),'YYYY-MM-DD') AS CONT_START_DT_TXT
+			, to_date(a.CONT_END_DT,'YYYYMMDD') AS CONT_END_DT
+			, to_char(to_date(a.CONT_END_DT,'YYYYMMDD'),'YYYY-MM-DD') AS CONT_END_DT_TXT
+			, a.EVAL_STAND
+			, a.PT_CONT
+			, a.ETC_ITEM
+			, a.PT_RESULT_CD
+			, res.CD_NM AS PT_RESULT_NM		
+			, a.OPTAIN_CORP	
+			, a.FEEDBACK			
+			, a.LESSON_LEARNED
+			, to_date(DOC_OPEN_DT,'YYYYMMDD') AS DOC_OPEN_DT
+			, a.SUBMIT_YN
+			, NVL(a.HIT,0) AS HIT
+			, a.REG_ID
+			, mem.MEMBER_NM AS REG_NM
+			, a.REG_DTM
+			, log.SUPER_YN
+			, (SELECT count(1) FROM KM_PT WHERE DBSTS='O' AND UPPER_PT_ID=a.PT_ID) AS CHILD_PT_CNT
+			, riv.RIVAL_NMS
+		FROM 
+			KM_PT a
+			LEFT JOIN KM_ADM_CD cli ON cli.UPPER_CD='CLIENT_CD' AND cli.ADM_CD=a.CLIENT_CD 			
+			LEFT JOIN KM_ADM_CD biz ON biz.UPPER_CD='BIZ_CD' AND biz.ADM_CD=a.BIZ_CD
+			LEFT JOIN KM_ADM_CD ptt ON ptt.UPPER_CD='PT_TYP_CD' AND ptt.ADM_CD=a.PT_TYP_CD
+			LEFT JOIN KM_ADM_CD res ON res.UPPER_CD='PT_RESULT_CD' AND res.ADM_CD=a.PT_RESULT_CD
+			LEFT JOIN KM_MEMBER mem ON mem.MID=a.REG_ID
+			LEFT JOIN KM_MEMBER log ON log.MID=#{mid}
+			LEFT JOIN (
+				SELECT 
+					PT_ID
+				  , ltrim(max(sys_connect_by_path(RIVAL_NM,', ')),', ') AS RIVAL_NMS
+				FROM
+					(
+				    SELECT
+				      a.PT_ID
+				      , a.RIVAL_CD
+				      , b.CD_NM AS RIVAL_NM
+				      , ROW_NUMBER() OVER(PARTITION BY a.PT_ID ORDER BY a.DISP_ORD) AS rn
+				    FROM 
+				      KM_PT_RIVAL a
+				      LEFT JOIN KM_ADM_CD b ON b.UPPER_CD='RIVAL_CD' AND b.ADM_CD=a.RIVAL_CD
+				  )
+				start with rn = 1
+				connect by prior rn = rn - 1
+				and prior PT_ID = PT_ID
+				GROUP BY PT_ID			
+			) riv ON riv.PT_ID = a.PT_ID			
+		WHERE
+			a.DBSTS = 'O'	
+			AND (
+				a.REG_ID = #{mid, jdbcType=VARCHAR}
+				OR
+				log.SUPER_YN='Y'				
+				OR
+				(
+					a.SUBMIT_YN = 'Y'
+					AND a.DOC_OPEN_DT IS NOT NULL
+					AND a.DOC_OPEN_DT &lt;= to_char(sysdate, 'YYYYMMDD')									
+				)				
+			)
+			AND a.PT_ID = #{ptId}
+	</select>
+	
+	<update id="updateHit">
+		UPDATE
+			KM_PT
+		SET
+			HIT = nvl(HIT,0) + 1
+		WHERE
+			PT_ID = #{ptId}
+			AND REG_ID != #{mid}
+	</update>
+	
+	<insert id="insertPt" parameterType="Map">
+		<selectKey keyProperty="ptId" resultType="String" order="BEFORE">
+			SELECT 'PT'||LPAD(SEQ_KM_PT_ID.NEXTVAL,8,'0') FROM DUAL
+		</selectKey>	
+		INSERT INTO KM_PT ( 
+			PT_ID
+			,UPPER_PT_ID
+			,TITLE
+			,CLIENT_CD
+			,ITEM
+			,BIZ_CD
+			,OT_DT
+			,PT_DT
+			,PT_TYP_CD
+			,AD_BUDGET
+			,CO_ATTEND
+			,AD_ATTEND
+			,CONT_START_DT
+			,CONT_END_DT
+			,EVAL_STAND
+			,PT_CONT
+			,ETC_ITEM
+			,PT_RESULT_CD
+			,OPTAIN_CORP
+			,FEEDBACK
+			,DOC_OPEN_DT
+			,HIT
+			,REG_ID
+			,REG_DTM
+			,UPD_ID
+			,UPD_DTM
+			,DBSTS
+			,SUBMIT_YN
+			,PT_CATE_CD
+		)
+		VALUES ( 
+			#{ptId, jdbcType=VARCHAR}
+			, #{upperPtId, jdbcType=VARCHAR}
+			, #{title, jdbcType=VARCHAR}
+			, #{clientCd, jdbcType=VARCHAR}
+			, #{item}
+			, #{bizCd}
+			, replace(#{otDt, jdbcType=VARCHAR},'-','')
+			, replace(#{ptDt, jdbcType=VARCHAR},'-','')
+			, #{ptTypCd}
+			, #{adBudget}
+			, #{coAttend}
+			, #{adAttend}
+			, replace(#{contStartDt, jdbcType=VARCHAR},'-','')
+			, replace(#{contEndDt, jdbcType=VARCHAR},'-','')
+			, #{evalStand}
+			, #{ptCont}
+			, #{etcItem}
+			, #{ptResultCd}
+			, #{optainCorp, jdbcType=VARCHAR}
+			, #{feedback, jdbcType=VARCHAR}
+			, replace(#{docOpenDt, jdbcType=VARCHAR},'-','')
+			, 0
+			, #{mid, jdbcType=VARCHAR}
+			, sysdate
+			, #{mid, jdbcType=VARCHAR}
+			, sysdate
+			, 'O'
+			, #{submitYn, jdbcType=VARCHAR}
+			,#{ptCateCd, jdbcType=VARCHAR}
+		)
+	</insert>
+
+	<update id="updatePt" parameterType="Map">
+		UPDATE
+			KM_PT a
+		SET
+			a.TITLE = #{title}
+			, a.CLIENT_CD = #{clientCd}
+			, a.ITEM = #{item}
+			, a.BIZ_CD = #{bizCd}
+			, a.OT_DT = replace(#{otDt, jdbcType=VARCHAR},'-','')
+			, a.PT_DT = replace(#{ptDt, jdbcType=VARCHAR},'-','')
+			, a.PT_TYP_CD = #{ptTypCd}
+			, a.AD_BUDGET = #{adBudget}
+			, a.CO_ATTEND = #{coAttend}
+			, a.AD_ATTEND = #{adAttend}
+			, a.CONT_START_DT = replace(#{contStartDt, jdbcType=VARCHAR},'-','')
+			, a.CONT_END_DT = replace(#{contEndDt, jdbcType=VARCHAR},'-','')
+			, a.EVAL_STAND = #{evalStand}
+			, a.PT_CONT = #{ptCont}
+			, a.ETC_ITEM = #{etcItem}
+			, a.PT_RESULT_CD = #{ptResultCd}
+			, a.OPTAIN_CORP = #{optainCorp, jdbcType=VARCHAR}
+			, a.FEEDBACK = #{feedback}
+			, a.DOC_OPEN_DT = replace(#{docOpenDt, jdbcType=VARCHAR},'-','')
+			, a.UPD_ID = #{mid}
+			, a.UPD_DTM = sysdate
+			<if test=' submitYn == "Y" '>
+				, a.SUBMIT_YN = 'Y'
+			</if>
+		WHERE
+			a.DBSTS = 'O'
+			AND a.PT_ID = #{ptId}
+			<!-- AND a.REG_ID = #{mid, jdbcType=VARCHAR} -->
+	</update>
+
+	<update id="updateRePt" parameterType="Map">
+		UPDATE
+			KM_PT a
+		SET
+			a.PT_RESULT_CD = 'PTR_R'
+			, a.UPD_ID = #{mid}
+			, a.UPD_DTM = sysdate
+		WHERE
+			a.DBSTS = 'O'
+			AND a.SUBMIT_YN = 'Y'
+			AND a.REG_ID = #{mid, jdbcType=VARCHAR}
+			AND a.PT_ID = #{upperPtId}
+	</update>
+	
+	<update id="updateDocOpenDt" parameterType="Map">
+		UPDATE
+			KM_PT a
+		SET
+			a.DOC_OPEN_DT = replace(#{docOpenDt, jdbcType=VARCHAR},'-','')
+			, a.UPD_ID = #{mid}
+			, a.UPD_DTM = sysdate
+		WHERE
+			a.DBSTS = 'O'
+			AND a.SUBMIT_YN = 'Y'
+			<!-- AND a.REG_ID = #{mid, jdbcType=VARCHAR} -->
+			AND a.PT_ID = #{ptId}
+	</update>
+	
+	<update id="deletePt" parameterType="Map">
+		UPDATE 
+			KM_PT
+		SET
+			DBSTS = 'D'
+			, UPD_ID = #{mid}
+			, UPD_DTM = sysdate
+		WHERE
+			PT_ID = #{ptId}
+			AND EXISTS(
+				SELECT 1
+				FROM KM_MEMBER
+				WHERE DBSTS='O' AND SUPER_YN='Y' AND MID = #{mid}
+			)
+	</update>
+	
+	<select id="selectPtRivalList" parameterType="Map" resultType="HashMap">
+		SELECT
+			a.PT_ID
+			, a.RIVAL_CD
+			, riv.CD_NM AS RIVAL_NM
+		FROM
+			KM_PT_RIVAL a
+			LEFT JOIN KM_ADM_CD riv ON riv.ADM_CD=a.RIVAL_CD
+		WHERE
+			a.DBSTS='O'
+			AND a.PT_ID=#{ptId}
+		ORDER BY a.DISP_ORD, riv.CD_NM
+	</select>
+
+	<update id="deletePtRival" parameterType="Map">
+		UPDATE 
+			KM_PT_RIVAL
+		SET
+			DBSTS = 'D'
+		WHERE
+			PT_ID = #{ptId}
+	</update>
+
+	<update id="insertPtRival" parameterType="Map">
+		MERGE INTO 
+			KM_PT_RIVAL a
+		USING ( SELECT #{ptId} AS PT_ID, #{rivalCd} AS RIVAL_CD FROM DUAL ) b
+		ON ( a.PT_ID=b.PT_ID AND a.RIVAL_CD=b.RIVAL_CD )
+		WHEN MATCHED THEN
+			UPDATE
+				SET 
+					DBSTS='O'
+					, DISP_ORD = #{dispOrd,jdbcType=VARCHAR}
+		WHEN NOT MATCHED THEN
+			INSERT (
+				PT_ID, RIVAL_CD, DISP_ORD, DBSTS
+			)
+			VALUES (
+				b.PT_ID, b.RIVAL_CD, #{dispOrd,jdbcType=VARCHAR}, 'O'
+			)
+	</update>
+
+	<update id="updateLesson" parameterType="Map">
+		UPDATE
+			KM_PT a
+		SET
+			LESSON_LEARNED = #{lessonLearned,jdbcType=VARCHAR}
+			, a.UPD_ID = #{mid}
+			, a.UPD_DTM = sysdate
+		WHERE
+			a.DBSTS = 'O'
+			AND a.PT_ID = #{ptId}
+	</update>
+			
+</mapper>

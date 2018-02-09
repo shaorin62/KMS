@@ -1,0 +1,177 @@
+<?xml version="1.0" encoding="UTF-8" ?>  
+<!DOCTYPE mapper  PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+
+<mapper namespace="com.skplanet.kms.cd">
+<resultMap type="HashMap" id="cdMap">
+		<result property="CONT" column="CONT" javaType="java.lang.String" jdbcType="CLOB" />
+	</resultMap>
+	
+<delete id="deleteCd" parameterType="Map">
+		
+		UPDATE KM_BOARD
+			SET
+		  	DBSTS ='D'
+		  WHERE
+		  	BD_ID  = #{bdId, jdbcType=VARCHAR}
+		
+
+</delete>
+	
+<sql id="selectCdSql">
+			SELECT 
+					 a.BD_ID
+					,a.BD_TYPE_CD
+					,typ.CD_NM AS BD_TYPE_NM
+					,a.TR_CATE_CD
+					,cat.CD_NM AS TR_CATE_NM
+					,a.TOP_YN
+					,a.TITLE
+					,a.CONT
+					,NVL(A.HIT,0) AS HIT
+					,a.REG_ID
+					,a.REG_DTM
+					,a.UPD_ID
+					,a.UPD_DTM
+					,a.DBSTS
+					,ROW_NUMBER() OVER(
+							 	ORDER BY a.TOP_YN DESC,
+								a.REG_DTM DESC
+					) AS RNUM
+					,mem.MEMBER_NM 
+					,div.CD_NM AS TEAM_NM
+					,mem.CR_APPOINT_YN
+			FROM 
+				KM_BOARD a
+				LEFT JOIN KM_MEMBER mem ON mem.MID=a.REG_ID
+				LEFT JOIN KM_ADM_CD typ ON typ.ADM_CD=a.BD_TYPE_CD 
+				LEFT JOIN KM_ADM_CD cat ON cat.ADM_CD IN (a.TR_CATE_CD,'BIZ_00000') 
+				LEFT JOIN KM_DIV_CD div ON div.DIV_CD=mem.DIV_CD
+			WHERE
+				a.DBSTS = 'O'
+				AND a.BD_TYPE_CD ='BOD_00002'
+				<if test=' searchRegId != null and searchRegId != "" '>
+				AND a.REG_ID = #{searchRegId, jdbcType=VARCHAR}
+			</if>
+				<if test="trCateCd != null and trCateCd != '' ">
+					AND a.TR_CATE_CD = #{trCateCd}
+				</if>
+				<if test="trCateCd == null and trCateCd == '' ">
+					AND ( a.TR_CATE_CD like '%'||#{trCateCd}||'%' OR mem.MEMBER_NM like '%'||#{searchText}||'%')
+				</if>
+				<if test="trCateCd == 'BIZ_00000'">
+					AND ( a.TOP_YN = 'Y' OR a.TOP_YN = 'y')
+				</if>
+				<if test=" searchStart != null and searchStart != '' ">
+				AND trunc(a.REG_DTM) &gt;= to_date(#{searchStart}, 'YYYY-MM-DD')
+			</if>
+			<if test=" searchEnd != null and searchEnd != '' ">
+				AND trunc(a.REG_DTM) &lt;= to_date(#{searchEnd}, 'YYYY-MM-DD')
+			</if>
+			<if test=" searchText != null and searchText != '' ">
+				<if test=" searchType == 'title' ">
+					AND a.TITLE like '%'||#{searchText}||'%'
+				</if>			
+				<if test=" searchType == 'regNm' ">
+					AND mem.MEMBER_NM like '%'||#{searchText}||'%'
+				</if>
+				<if test=" searchType == null or searchType == '' ">
+					AND ( a.TITLE like '%'||#{searchText}||'%' OR mem.MEMBER_NM like '%'||#{searchText}||'%')
+				</if>
+			</if>			
+	</sql>
+	
+	<select id="selectCdCnt" parameterType="Map" resultType="int">
+		SELECT count(1) FROM (<include refid="selectCdSql"/>)
+	</select>
+	
+	<select id="selectCdList" parameterType="Map" resultMap="cdMap">
+		SELECT * FROM (<include refid="selectCdSql"/> ) WHERE RNUM BETWEEN #{firstRow} AND #{lastRow} ORDER BY RNUM
+	</select>
+	
+	
+	 <select id="selectCdOne" parameterType="Map" resultMap="cdMap">
+					SELECT 
+					 a.BD_ID
+					,a.BD_TYPE_CD
+					,typ.CD_NM AS BD_TYPE_NM
+					,a.TR_CATE_CD
+					,cat.CD_NM AS TR_CATE_NM
+					,a.TOP_YN
+					,a.TITLE
+					,a.CONT
+					,NVL(A.HIT,0) AS HIT
+					,a.REG_ID
+					,a.REG_DTM
+					,a.UPD_ID
+					,a.UPD_DTM
+					,a.DBSTS
+					,mem.MEMBER_NM 
+					,div.CD_NM AS TEAM_NM	
+					, log.SUPER_YN
+			FROM 
+				KM_BOARD a
+				LEFT JOIN KM_MEMBER mem ON mem.MID=a.REG_ID
+				LEFT JOIN KM_ADM_CD typ ON typ.ADM_CD=a.BD_TYPE_CD 
+				LEFT JOIN KM_ADM_CD cat ON cat.ADM_CD=a.TR_CATE_CD
+				LEFT JOIN KM_DIV_CD div ON div.DIV_CD=mem.DIV_CD
+				LEFT JOIN KM_MEMBER log ON log.MID=#{mid}
+			WHERE
+				a.DBSTS = 'O'
+				AND a.BD_ID = #{bdId, jdbcType=VARCHAR}
+	</select>
+	
+	<insert id="insertCd" parameterType="Map" >
+		<selectKey keyProperty="bdId" resultType="String" order="BEFORE">
+			SELECT 'BD'||LPAD(SEQ_KM_BD_ID.NEXTVAL,8,'0') FROM DUAL
+		</selectKey>
+		INSERT INTO KM_BOARD(
+			BD_ID
+			,BD_TYPE_CD
+			,TR_CATE_CD
+			,TOP_YN
+			,TITLE
+			,CONT
+			,HIT
+			,REG_ID
+			,REG_DTM
+			,UPD_ID
+			,UPD_DTM
+			,DBSTS
+		)VALUES(
+			#{bdId, jdbcType=VARCHAR}
+			,'BOD_00002'
+			,#{trCateCd, jdbcType=VARCHAR}
+			,#{topYn}
+			,#{title, jdbcType=VARCHAR}
+			,#{cont}
+			,0
+			,#{mid, jdbcType=VARCHAR}
+			,sysdate
+			,#{mid, jdbcType=VARCHAR}
+			,sysdate
+			,'O'
+		)
+	</insert> 
+	
+	<update id="updateCdHit" parameterType="Map">
+		UPDATE KM_BOARD
+			SET            
+				HIT = nvl(HIT,0)+1
+		WHERE
+				BD_ID = #{bdId}
+	</update>
+	
+	<update id="updateCd" parameterType="Map">
+		UPDATE KM_BOARD
+			SET 
+				TITLE = #{title, jdbcType=VARCHAR}
+				,TR_CATE_CD = #{trCateCd, jdbcType=VARCHAR}
+				,CONT = #{cont}
+				,TOP_YN = #{topYn, jdbcType=VARCHAR}
+				,UPD_ID = #{mid}
+				,UPD_DTM = sysdate
+			WHERE
+			BD_ID = #{bdId}
+	</update>
+	
+</mapper>	

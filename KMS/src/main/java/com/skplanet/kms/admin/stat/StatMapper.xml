@@ -1,0 +1,263 @@
+<?xml version="1.0" encoding="UTF-8" ?>  
+<!DOCTYPE mapper  PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+
+<mapper namespace="com.skplanet.kms.admin.stat">
+
+	<select id="selectDivList" parameterType="String" resultType="HashMap">
+		SELECT
+			DIV_CD AS CD
+			, CD_NM AS NM
+		FROM KM_DIV_CD a
+		WHERE
+			a.DBSTS = 'O'
+			AND a.UPPER_CD=#{upperCd}
+		ORDER BY CD_NM
+	</select>
+
+	<select id="selectMemberList" parameterType="String" resultType="HashMap">
+		SELECT
+			a.MID
+			, a.MEMBER_NM
+		FROM KM_MEMBER a
+		WHERE
+			a.DBSTS = 'O'
+			AND a.ADM_YN='N'
+			AND a.DIV_CD IS NOT NULL
+			AND a.DIV_CD=#{divCd}
+		ORDER BY a.MEMBER_NM
+	</select>
+
+	<sql id="selectStatSql">
+		SELECT
+			a.MID
+			, a.MEMBER_NM
+			, decode(substr(div.DIV_CD,1,4),'TEA_',div.DIV_CD,'') AS TEAM_CD	
+			, decode(substr(div.DIV_CD,1,4),'CEN_',div.DIV_CD,'TEA_',div2.DIV_CD,'') AS CENTER_CD
+			, decode(substr(div.DIV_CD,1,4),'TEA_',div.CD_NM,'') AS TEAM_NM	
+			, decode(substr(div.DIV_CD,1,4),'CEN_',div.CD_NM,'TEA_',div2.CD_NM,'') AS CENTER_NM							
+			, vc.COUNT AS VC_COUNT
+			, pt.COUNT AS PT_COUNT	
+			, tr.COUNT AS TR_COUNT
+			, ha.COUNT AS HA_COUNT
+		FROM
+			KM_MEMBER a
+			LEFT JOIN KM_DIV_CD div ON div.DIV_CD=a.DIV_CD
+			LEFT JOIN KM_DIV_CD div2 ON div2.DIV_CD=div.UPPER_CD
+			LEFT JOIN(
+				SELECT
+					REG_ID
+					, count(1) AS COUNT 
+				FROM
+					KM_VC
+				WHERE
+					DBSTS='O'
+					<if test=' searchStart != null and searchStart != "" '>
+						AND trunc(REG_DTM) &gt;= to_date(#{searchStart}, 'YYYY-MM-DD')
+					</if>
+					<if test=' searchEnd != null and searchEnd != "" '>
+						AND trunc(REG_DTM) &lt;= to_date(#{searchEnd}, 'YYYY-MM-DD')
+					</if>
+				GROUP BY REG_ID
+			)vc ON a.MID = vc.REG_ID
+			LEFT JOIN(
+				SELECT
+					REG_ID
+					, count(1) AS COUNT 
+				FROM
+					KM_PT
+				WHERE
+					DBSTS='O'
+					<if test=' searchStart != null and searchStart != "" '>
+						AND trunc(REG_DTM) &gt;= to_date(#{searchStart}, 'YYYY-MM-DD')
+					</if>
+					<if test=' searchEnd != null and searchEnd != "" '>
+						AND trunc(REG_DTM) &lt;= to_date(#{searchEnd}, 'YYYY-MM-DD')
+					</if>
+				GROUP BY REG_ID
+			)pt ON a.MID = pt.REG_ID		
+			LEFT JOIN(
+				SELECT
+					REG_ID
+					, count(1) AS COUNT 
+				FROM
+					KM_BOARD
+				WHERE
+					DBSTS='O'
+					AND BD_TYPE_CD = 'BOD_00001'
+					<if test=' searchStart != null and searchStart != "" '>
+						AND trunc(REG_DTM) &gt;= to_date(#{searchStart}, 'YYYY-MM-DD')
+					</if>
+					<if test=' searchEnd != null and searchEnd != "" '>
+						AND trunc(REG_DTM) &lt;= to_date(#{searchEnd}, 'YYYY-MM-DD')
+					</if>
+				GROUP BY REG_ID
+			)tr ON a.MID = tr.REG_ID
+			LEFT JOIN(
+				SELECT
+					REG_ID
+					, count(1) AS COUNT 
+				FROM
+					KM_HA
+				WHERE
+					DBSTS='O'
+					<if test=' searchStart != null and searchStart != "" '>
+						AND trunc(REG_DTM) &gt;= to_date(#{searchStart}, 'YYYY-MM-DD')
+					</if>
+					<if test=' searchEnd != null and searchEnd != "" '>
+						AND trunc(REG_DTM) &lt;= to_date(#{searchEnd}, 'YYYY-MM-DD')
+					</if>
+				GROUP BY REG_ID
+			)ha ON a.MID = ha.REG_ID										
+		WHERE
+			a.DBSTS='O'
+			AND a.ADM_YN='N'
+	</sql>
+	
+	<sql id="selectStatAllSql">
+		SELECT
+			nvl(sum(VC_COUNT),0) AS VC_COUNT
+			, nvl(sum(PT_COUNT),0) AS PT_COUNT
+			, nvl(sum(TR_COUNT),0) AS TR_COUNT
+			, nvl(sum(HA_COUNT),0) AS HA_COUNT
+			, nvl(sum(VC_COUNT),0)+nvl(sum(PT_COUNT),0)+nvl(sum(TR_COUNT),0)+nvl(sum(HA_COUNT),0) AS TOTAL_COUNT
+			, '-' AS CENTER_NM
+			, '-' AS TEAM_NM
+			, '-' AS MEMBER_NM
+			, 1 AS RNUM
+		FROM (
+			<include refid="selectStatSql"/>
+		) a
+	</sql>
+
+	<sql id="selectStatCenterSql">
+		SELECT
+			a.*
+			, '-' AS CENTER_NM
+			, nvl(tea.CD_NM,'직책자') AS TEAM_NM
+			, '-' AS MEMBER_NM
+			, row_number() over(ORDER BY cen.CD_NM, tea.CD_NM) AS RNUM
+		FROM
+		(		
+			SELECT
+				nvl(sum(VC_COUNT),0) AS VC_COUNT
+				, nvl(sum(PT_COUNT),0) AS PT_COUNT
+				, nvl(sum(TR_COUNT),0) AS TR_COUNT
+				, nvl(sum(HA_COUNT),0) AS HA_COUNT
+				, nvl(sum(VC_COUNT),0)+nvl(sum(PT_COUNT),0)+nvl(sum(TR_COUNT),0)+nvl(sum(HA_COUNT),0) AS TOTAL_COUNT
+				, CENTER_CD
+				, TEAM_CD
+			FROM (
+				<include refid="selectStatSql"/>
+			)
+			WHERE
+				CENTER_CD = #{centerCd}
+			GROUP BY CENTER_CD, TEAM_CD
+		) a
+		LEFT JOIN KM_DIV_CD cen ON a.CENTER_CD=cen.DIV_CD
+		LEFT JOIN KM_DIV_CD tea ON a.TEAM_CD=tea.DIV_CD
+	</sql>
+
+	<sql id="selectStatTeamSql">
+		SELECT
+			nvl(VC_COUNT,0) AS VC_COUNT
+			, nvl(PT_COUNT,0) AS PT_COUNT
+			, nvl(TR_COUNT,0) AS TR_COUNT
+			, nvl(HA_COUNT,0) AS HA_COUNT
+			, nvl(VC_COUNT,0)+nvl(PT_COUNT,0)+nvl(TR_COUNT,0)+nvl(HA_COUNT,0) AS TOTAL_COUNT
+			, CENTER_CD
+			, TEAM_CD
+			, MID
+			, MEMBER_NM
+			, decode(#{regId,jdbcType=VARCHAR}, null, '-', TEAM_NM) AS TEAM_NM
+			, decode(#{regId,jdbcType=VARCHAR}, null, '-', CENTER_NM) AS CENTER_NM
+			, row_number() over(ORDER BY MEMBER_NM) AS RNUM
+		FROM (
+			<include refid="selectStatSql"/>
+		)
+		WHERE
+			1=1
+			<if test=' teamCd != null and teamCd != "" '>
+				AND TEAM_CD = #{teamCd}
+			</if>
+			<if test=' regId != null and regId != "" '>
+				AND MID = #{regId}
+			</if>
+	</sql>
+			
+	<select id="selectStatCnt" parameterType="Map" resultType="int">
+		SELECT count(1) FROM (
+			<if test=' (centerCd == null or centerCd == "") and (teamCd == null or teamCd == "") and (regId == null or regId == "") ' >
+				<include refid="selectStatAllSql"/>
+			</if>
+			<if test=' (centerCd != null and centerCd != "") and (teamCd == null or teamCd == "") and (regId == null or regId == "") ' >
+				<include refid="selectStatCenterSql"/>
+			</if>
+			<if test=' (teamCd != null and teamCd != "") and (regId == null or regId == "") ' >
+				<include refid="selectStatTeamSql"/>
+			</if>
+			<if test=' regId != null and regId != "" ' >
+				<include refid="selectStatTeamSql"/>
+			</if>
+		)
+	</select>
+	
+	<select id="selectStatList" parameterType="Map" resultType="HashMap">
+		SELECT * FROM ( 
+			<if test=' (centerCd == null or centerCd == "") and (teamCd == null or teamCd == "") and (regId == null or regId == "") ' >
+				<include refid="selectStatAllSql"/>
+			</if>
+			<if test=' (centerCd != null and centerCd != "") and (teamCd == null or teamCd == "") and (regId == null or regId == "") ' >
+				<include refid="selectStatCenterSql"/>
+			</if>
+			<if test=' (teamCd != null and teamCd != "") and (regId == null or regId == "") ' >
+				<include refid="selectStatTeamSql"/>
+			</if>
+			<if test=' regId != null and regId != "" ' >
+				<include refid="selectStatTeamSql"/>
+			</if>
+		) WHERE RNUM BETWEEN #{firstRow} AND #{lastRow} ORDER BY RNUM
+	</select>
+	
+	<select id="selectListTotal" parameterType="Map" resultType="HashMap">
+		SELECT
+			VC_COUNT
+			,PT_COUNT
+			,TR_COUNT
+			,HA_COUNT
+			,TOTAL_COUNT
+			,nvl(cen.CD_NM,'-') AS CENTER_NM
+			,nvl(tea.CD_NM,'-') AS TEAM_NM
+			,'-' AS MEMBER_NM
+		FROM
+		(
+			SELECT
+				nvl(sum(VC_COUNT),0) AS VC_COUNT
+				, nvl(sum(PT_COUNT),0) AS PT_COUNT
+				, nvl(sum(TR_COUNT),0) AS TR_COUNT
+				, nvl(sum(HA_COUNT),0) AS HA_COUNT
+				, nvl(sum(VC_COUNT),0)+nvl(sum(PT_COUNT),0)+nvl(sum(TR_COUNT),0)+nvl(sum(HA_COUNT),0) AS TOTAL_COUNT
+			FROM (
+				<include refid="selectStatSql"/>
+			)
+			WHERE
+				1=1
+				<if test=' centerCd != null and centerCd != "" '>
+					AND CENTER_CD = #{centerCd}
+				</if>
+				<if test=' teamCd != null and teamCd != "" '>
+					AND TEAM_CD = #{teamCd}
+				</if>
+		) a
+		LEFT JOIN KM_DIV_CD cen ON cen.DIV_CD=#{centerCd, jdbcType=VARCHAR}
+		LEFT JOIN KM_DIV_CD tea ON tea.DIV_CD=#{teamCd, jdbcType=VARCHAR}
+		WHERE
+			1=1
+			<if test=' (centerCd == null or centerCd == "") and (teamCd == null or teamCd == "") and (regId == null or regId == "") ' >
+				AND 1=0
+			</if>
+			<if test=' regId != null and regId != "" '>
+				AND 1=0
+			</if>				
+	</select>
+	
+</mapper>

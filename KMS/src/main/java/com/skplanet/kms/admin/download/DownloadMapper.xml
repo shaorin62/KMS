@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8" ?>  
+<!DOCTYPE mapper  PUBLIC "-//ibatis.apache.org//DTD Mapper 3.0//EN" "http://ibatis.apache.org/dtd/ibatis-3-mapper.dtd">
+
+<mapper namespace="com.skplanet.kms.admin.download">
+
+	<select id="selectTop10List" parameterType="Map" resultType="HashMap">
+		SELECT * FROM (
+			SELECT
+				a.MID
+				, a.MEMBER_NM
+				, decode(substr(div.DIV_CD,1,4),'TEA_',div.CD_NM,'') AS TEAM_NM	
+				, decode(substr(div.DIV_CD,1,4),'CEN_',div.CD_NM,'TEA_',div2.CD_NM,'') AS CENTER_NM
+				, NVL(dow.DOWN_COUNT,0) AS DOWN_COUNT
+				, row_number() over(ORDER BY NVL(dow.DOWN_COUNT,0) DESC) AS RNUM
+			FROM 
+				KM_MEMBER a
+				LEFT JOIN KM_DIV_CD div ON div.DIV_CD=a.DIV_CD
+				LEFT JOIN KM_DIV_CD div2 ON div2.DIV_CD=div.UPPER_CD			
+				LEFT JOIN (
+					SELECT
+						REG_ID
+						, count(1) AS DOWN_COUNT
+					FROM
+						KM_LOG
+					WHERE
+						LOG_TYP_CD = 'LOG_TYP_DOWNLOAD' AND BCD='PT'
+						<if test=' searchStart != null and searchStart != "" '>
+							AND trunc(REG_DTM) &gt;= to_date(#{searchStart}, 'YYYY-MM-DD')
+						</if>
+						<if test=' searchEnd != null and searchEnd != "" '>
+							AND trunc(REG_DTM) &lt;= to_date(#{searchEnd}, 'YYYY-MM-DD')
+						</if>						
+					GROUP BY REG_ID
+				) dow ON dow.REG_ID=a.MID				
+			WHERE
+				a.DBSTS='O'
+				AND a.ADM_YN='N'
+				<if test=' searchText != null and searchText != "" '>
+					<if test=' searchType == "memberNm" '>
+						AND a.MEMBER_NM like '%'||#{searchText}||'%'
+					</if>			
+					<if test=' searchType == "mid" '>
+						AND a.MID like '%'||#{searchText}||'%'
+					</if>
+					<if test=' searchType == null or searchType == "" '>
+						AND ( a.MEMBER_NM like '%'||#{searchText}||'%' OR a.MID like '%'||#{searchText}||'%' )
+					</if>
+				</if>	
+		) WHERE RNUM &lt;= 10		
+	</select>
+
+	<sql id="selectDownloadSql">
+		SELECT
+			a.BCD
+			, bcd.CD_NM AS BNM
+			, a.BID
+			, decode(substr(a.BID,1,2),'VC',vc.TITLE,'PT',pt.TITLE,'BD',bd.TITLE,'HA',ha.TITLE,'') AS TITLE
+			, a.REG_ID
+			, a.REG_DTM
+			, mem.MEMBER_NM
+			, decode(substr(div.DIV_CD,1,4),'TEA_',div.CD_NM,'') AS TEAM_NM	
+			, decode(substr(div.DIV_CD,1,4),'CEN_',div.CD_NM,'TEA_',div2.CD_NM,'') AS CENTER_NM
+			, upl.ORG_FILE_NM	
+			, upl.FILE_PATH			
+			, row_number() over( ORDER BY a.REG_DTM DESC ) AS RNUM
+		FROM
+			KM_LOG a
+			LEFT JOIN KM_ADM_CD bcd ON bcd.UPPER_CD='BCD' AND bcd.ADM_CD=a.BCD
+			LEFT JOIN KM_MEMBER mem ON mem.MID=a.REG_ID
+			LEFT JOIN KM_DIV_CD div ON div.DIV_CD=mem.DIV_CD
+			LEFT JOIN KM_DIV_CD div2 ON div2.DIV_CD=div.UPPER_CD	
+			LEFT JOIN KM_UPLOAD upl ON upl.UPLOAD_SEQ = a.UPLOAD_SEQ
+			LEFT JOIN KM_VC vc ON vc.VC_ID = a.BID
+			LEFT JOIN KM_PT pt ON pt.PT_ID = a.BID
+			LEFT JOIN KM_BOARD bd ON bd.BD_ID = a.BID
+			LEFT JOIN KM_HA ha ON ha.HA_ID = a.BID						
+		WHERE
+			a.LOG_TYP_CD = 'LOG_TYP_DOWNLOAD'
+			<if test=' searchStart != null and searchStart != "" '>
+				AND trunc(a.REG_DTM) &gt;= to_date(#{searchStart}, 'YYYY-MM-DD')
+			</if>
+			<if test=' searchEnd != null and searchEnd != "" '>
+				AND trunc(a.REG_DTM) &lt;= to_date(#{searchEnd}, 'YYYY-MM-DD')
+			</if>
+			<if test=' searchText != null and searchText != "" '>
+				<if test=' searchType == "memberNm" '>
+					AND mem.MEMBER_NM like '%'||#{searchText}||'%'
+				</if>			
+				<if test=' searchType == "teamNm" '>
+					AND decode(substr(div.DIV_CD,1,4),'TEA_',div.CD_NM,'') like '%'||#{searchText}||'%'
+				</if>
+				<if test=' searchType == null or searchType == "" '>
+					AND ( mem.MEMBER_NM like '%'||#{searchText}||'%' OR decode(substr(div.DIV_CD,1,4),'TEA_',div.CD_NM,'') like '%'||#{searchText}||'%' )
+				</if>
+			</if>
+			<if test=' mid != null and mid != "" '>
+				AND a.REG_ID = #{mid}
+			</if>						
+	</sql>
+	
+	<select id="selectDownloadCnt" parameterType="Map" resultType="int">
+		SELECT count(1) FROM ( <include refid="selectDownloadSql"/> )
+	</select>
+	
+	<select id="selectDownloadList" parameterType="Map" resultType="HashMap">
+		SELECT * FROM ( <include refid="selectDownloadSql"/> ) WHERE RNUM BETWEEN #{firstRow} AND #{lastRow} ORDER BY RNUM
+	</select>
+
+</mapper>
