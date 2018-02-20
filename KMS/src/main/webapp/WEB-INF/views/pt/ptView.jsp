@@ -631,8 +631,8 @@ function streamDocPop2(viewInfo){
 		<c:if test="${pt.SUPER_YN eq 'Y'}">
 			<button type="button" id="deleteBtn" class="btn btnMid btnRed" style="width:150px;">삭제</button>
 		</c:if>
-		<%-- <c:if test="${pt.REG_ID eq params.mid}"> --%>
-		<c:if test="${pt.SUPER_YN eq 'Y'}">
+		<c:if test="${pt.REG_ID eq params.mid || pt.SUPER_YN eq 'Y' }">
+<%-- 		<c:if test="${pt.SUPER_YN eq 'Y'}"> --%>
 			<button type="button" id="updateBtn" class="btn btnMid btnBlue ml10" style="width:150px;">수정</button>
 		</c:if>
 	</div>
