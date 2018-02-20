@@ -74,12 +74,6 @@ function getCookie(cName) {
 
 function login(){
 	
-	if($('#mid').val()!='M123456789'){
-		alert('KMS 서비스 이관 중입니다. 접속이 불가능 합니다..');
-		return;	
-	}
-	
-	
 	if($('#mid').val()==''){
 		alert('아이디를 입력해 주세요.');
 		$('#mid').focus();
@@ -136,7 +130,7 @@ function createIcon(){
 			
 			var sIconNm = "M-Library";
 			var sName 	= WshShell.CreateShortcut(Desktoptemp + "\\" + sIconNm + ".URL");
-			sName.TargetPath = "http://mlb.skplanet.com";
+			sName.TargetPath = "http://mlb.smtown.com";
 			sName.Save();
 	  }
 }
@@ -160,7 +154,6 @@ function setCookie(cName, cValue,cDay){
 </script>
 
 <div class="wrap">
-	
 	<div class="loginWrap">
 		<h1><button type="button" onclick="setCookie('pop1','',-1);"><img src="/resources/images/logo2.png" alt="M-Library (Knowledge Magement System)" > </button></h1>
 		<h2>로그인</h2>
@@ -185,7 +178,9 @@ function setCookie(cName, cValue,cDay){
 
 			<ul class="loginTxList">
 				<li><span class="red">M-Library</span> 시스템 사용은 <span class="red">사내망</span> 내에서만 가능합니다.</li>
-				<li>아이디는 사번이며 (아이디 대소문자 확인 바랍니다.), 최초 비밀번호는 생년월일 8자리 입니다.</li>
+				<li>아이디는 사번이며, 최초 비밀번호는 생년월일 8자리 입니다.</li>
+				<li><img style="width: 60 px; height: 40px;" src="/resources/images/explorer.png" alt="M-Library (Knowledge Magement System)" >
+					M-Library 는 IE 에서 에러가 발생 될 수 있습니다.</li>
 				<li>
 					기타 문의 사항은  ADMIN 관리자에게 문의 바랍니다.
 					<p class="">- ADMIN 관리자: 박예린.     <span class="ml15">문의 메일: <a href="mailto:yerin.park@smtown.com">yerin.park@smtown.com</a></span></p>
