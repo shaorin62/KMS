@@ -92,6 +92,8 @@ public class MemberService {
 	public int updateMember(Map<String, String> params){
 		return  memberDAO.updateMember(params);
 	}
+	
+	
 	public int insertMember(Map<String, String> params) {
 		return memberDAO.insertMember(params);
 	}

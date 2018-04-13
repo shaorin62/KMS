@@ -33,6 +33,9 @@ $(document).ready(function(){
 	$('#updateBtn').click(function(){
 		update();
 	});
+	$('#updatePwinitBtn').click(function(){
+		updatePwinit();
+	});
 	
 	$('input[type=text]').blur(function(){
 		var value = $.trim($(this).val());
@@ -156,6 +159,59 @@ function update(){
 			
 }	
 
+
+//패스워드 초기화
+function updatePwinit(){
+
+	//패스워드 초기화
+	if(!confirm('패스워드를 초기화 하시겠습니까? \n패스워드는 생년월일 9 자리로 초기화 됩니다.' )) return;
+
+	// 세션체크
+	if( sessionCheck() == false ) { sessionOut(); return; }
+	$.ajax({
+		type : "POST",
+		url : "/admin/member/memberUpdatepwinit.do",
+		cache : false,
+		async : false,
+		data : $("#updateForm").serialize(),
+		dataType : "json",				
+		success : function(data) {		
+			if(data.result=='true'){
+				alert('수정되었습니다.');
+				goList();
+			}
+			else{
+				alert(data.msg);
+			}
+		},
+		error : function(request, status, errorThrown) {
+			alert('시스템 오류입니다. 잠시 후 다시 시도해 주세요.');
+		}
+	});	
+	
+	/* $.ajax({
+		type : "POST",
+ 		url : "/admin/member/memberUpdatepwinit.do",
+		cache : false,
+		async : false,
+		data : $("#updateForm").serialize(),
+		dataType : "json",				
+		success : function(data) {		
+			if(data.result=='true'){
+				alert('초기화 되었습니다.');
+				goList();
+			}
+			else{
+				alert(data.msg);
+			}
+		},
+		error : function(request, status, errorThrown) {
+			alert('시스템 오류입니다. 잠시 후 다시 시도해 주세요.');
+		}
+	});	 */	
+			
+}	
+
 function goList(){
 	$('#searchForm').prop('method','GET');
 	$('#searchForm').prop('action','/admin/member/memberList.do');
@@ -254,7 +310,7 @@ function successFunc(retdata){
 				<ul class="admList admList02">
 					<li class="div tac">
 						<label for="cTeamCd"><strong class="tit01" >본부</strong></label>
-						<select title="검색범위선택" style="width:150px;" id="cTeamCd" name="cTeamCd"  onChange="javascript:changeCteamCdFunc()">>
+						<select title="검색범위선택" style="width:150px;" id="cTeamCd" name="cTeamCd"  onChange="javascript:changeCteamCdFunc()">
 							<option value="">없음</option>
 							<c:forEach var="category" items="${cTeamCdList}" varStatus="status">
 								<c:if test="${params.cTeamCd == category.CD}">
@@ -389,6 +445,7 @@ function successFunc(retdata){
 
 			<div class="tac">
 				<button type="button" class="btn btnMid btnBlue ml10" id="updateBtn" style="width:150px;">수정</button>
+				<button type="button" class="btn btnMid btnBlue ml10" id="updatePwinitBtn" style="width:150px;">비밀번호초기화</button>
 			</div>
 
 

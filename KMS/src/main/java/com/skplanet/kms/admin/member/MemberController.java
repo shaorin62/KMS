@@ -219,6 +219,33 @@ public class MemberController {
 		return returnMap;
 	} 
 	
+	
+	/*패스워드 초기화*/			     
+	@RequestMapping(value="/admin/member/memberUpdatepwinit.do",method = {RequestMethod.GET, RequestMethod.POST})
+	@ResponseBody
+	public Map<String,String> memberUpdatepwinit(@RequestParam Map<String,String>  params){
+		
+		System.out.println("||||||||||||||||||||||||||||||||||||||||||||||||||||||");
+		params.put("sessionMid", loginService.getLoginVO(request).getMid());
+		
+		//생년월일을 가져와서 해쉬 암호화 하여 비밀번호 업데이트
+		String birthDt = params.get("birthDt");
+		params.put("birthDt", birthDt);
+		
+		// 패스워드 단방향 암호화
+		params.put("passwd", SHA256.encrypt(params.get("birthDt")));
+		// 패스워드 업데이트
+		int ret = loginService.updatePasswd(params);
+		
+		Map<String,String> returnMap = new HashMap<String,String>();
+		if(ret == 1){
+			returnMap.put("result","true");
+		}else{
+			returnMap.put("result","false");
+		}
+		return returnMap;
+	} 
+	
 	/*엑셀파일업로드*/
 	@RequestMapping(value="/admin/member/memberUploadFile.do", method=RequestMethod.POST)
 	@ResponseBody
