@@ -66,6 +66,17 @@ function deleteFu(){
 	});
 }
 
+function streamDocPop(viewInfo){
+	var win = "";
+	var width = 1600, height = 800 ;
+	var left = (screen.width - width) / 2 ;
+	var top = (screen.height - height) / 2 ;
+	//팝업 노출 
+	win = window.open("http://${ctx }:3001/streamdocs/viewer.html?viewInfo=" + viewInfo, 'popup','width=' + width +  ', height=' + height +  ', left=' + left +  ', top=' + top + ',scrollbars=no,toolbars=no,location=no');
+	
+	return false;
+}
+
 
 
 </script>
@@ -142,7 +153,19 @@ function deleteFu(){
 									<a href="/upload/downloadFile.do?bid=<c:out value='${att.BID}'/>&uploadSeq=<c:out value='${att.UPLOAD_SEQ}'/>"><c:out value="${att.ORG_FILE_NM}"/></a>
 								</p>								
 							</div>
-							<a href="/upload/downloadFile.do?bid=<c:out value='${att.BID}'/>&uploadSeq=<c:out value='${att.UPLOAD_SEQ}'/>" class="btn btn05">다운로드</a>		
+							<!--  Trend Report 카테고리가 셀럽 파워리포트가 아닐 경우 다운로드 --> 
+							<c:if test="${returnMap.TR_CATE_CD ne 'TRC_00006'}">
+								<a href="/upload/downloadFile.do?bid=<c:out value='${att.BID}'/>&uploadSeq=<c:out value='${att.UPLOAD_SEQ}'/>" class="btn btn05">다운로드</a>
+							</c:if>
+							
+							<!--  Trend Report 카테고리가 셀럽 파워리포트일 경우 스트림닥스 뷰어 이용 -->
+							<c:if test="${returnMap.TR_CATE_CD eq 'TRC_00006'}">
+								<a href="#" class="btn btn05" onclick="streamDocPop('<c:out value='${att.Viewinfo}'/>')">보기</a>
+								<c:if test="${params.superYn eq 'Y'}">
+									<a href="/upload/downloadFile.do?bid=<c:out value='${att.BID}'/>&uploadSeq=<c:out value='${att.UPLOAD_SEQ}'/>" class="btn btn05">저장</a>
+								</c:if>
+							</c:if>
+										
 						</td>
 					</tr>
 					</c:forEach> 

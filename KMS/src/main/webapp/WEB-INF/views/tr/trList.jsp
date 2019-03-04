@@ -119,6 +119,14 @@ function view(bdId){
 					</c:otherwise>
 				</c:choose>
 				<c:choose>
+					<c:when test="${params.trCateCd eq 'TRC_00006' }">
+						<li class="on"><a href="/tr/trList.do?trCateCd=TRC_00006">셀럽파워리포트</a></li>
+					</c:when>
+					<c:otherwise>
+						<li><a href="/tr/trList.do?trCateCd=TRC_00006">셀럽파워리포트</a></li>
+					</c:otherwise>
+				</c:choose>
+				<c:choose>
 					<c:when test="${params.trCateCd eq 'TRC_00005' }">
 						<li class="on"><a href="/tr/trList.do?trCateCd=TRC_00005">기타</a></li>
 					</c:when>

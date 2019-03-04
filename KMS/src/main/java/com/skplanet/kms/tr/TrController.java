@@ -1,5 +1,7 @@
 package com.skplanet.kms.tr;
 
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -21,6 +23,7 @@ import com.skplanet.kms.common.CommonService;
 import com.skplanet.kms.common.PointTyp;
 import com.skplanet.kms.login.LoginService;
 import com.skplanet.kms.upload.UploadService;
+import com.skplanet.kms.util.BASE64;
 import com.skplanet.kms.util.ListPage;
 
 
@@ -162,6 +165,45 @@ public class TrController {
 		params.put("bid", params.get("bdId"));
 		List<Map<String,Object>> attList = uploadService.selectAttachList(params);
 		
+		//------------------------------------------------StreamDocs 작업---------------------------------------------------
+				for(int i =0; i < attList.size(); i++){
+					String orgFileNm = attList.get(i).get("ORG_FILE_NM").toString();
+					
+					//영상 파일
+					if("avi".equalsIgnoreCase(getExt(orgFileNm))
+						|| "mp4".equalsIgnoreCase(getExt(orgFileNm))
+						|| "wmv".equalsIgnoreCase(getExt(orgFileNm))
+						|| "mpg".equalsIgnoreCase(getExt(orgFileNm))
+						|| "mpeg".equalsIgnoreCase(getExt(orgFileNm))
+						|| "mov".equalsIgnoreCase(getExt(orgFileNm))){
+						
+						String Filepath = attList.get(i).get("FILE_PATH").toString();
+						
+					    //URL 인코딩
+						try {
+							attList.get(i).put("Viewinfo", URLEncoder.encode(Filepath, "UTF-8"));
+						} catch (UnsupportedEncodingException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
+						
+					}else{
+						//이외의 파일
+						String Filepath = attList.get(i).get("FILE_PATH").toString();
+						String Username = loginService.getLoginVO(request).getMemberNm();
+						String Userid = loginService.getLoginVO(request).getMid();
+						//StreamDocs 자료 만들기
+						String Viewinfo = StreamDocsView(Filepath, Username, Userid);
+						attList.get(i).put("Viewinfo", Viewinfo);
+						
+					}
+					
+					
+					System.out.println("=============확인 용=============" + attList.get(i).get("Viewinfo").toString() );
+					
+				}
+				//------------------------------------------------StreamDocs 작업---------------------------------------------------
+		
 		model.addAttribute("params",params);
 		model.addAttribute("returnMap",returnMap);
 		model.addAttribute("attList", attList);
@@ -228,6 +270,33 @@ public class TrController {
 			returnMap.put("result","false");
 		}
 		return returnMap;
+	}
+	
+	
+	public String StreamDocsView(String Filepath, String Username, String Userid) {
+
+		String viewinfo ="";
+			
+		    viewinfo = Filepath + ";" + Username + ";" + Userid ;
+		    //Base64인코딩
+			viewinfo = BASE64.encrypt64(viewinfo);
+		    //URL 인코딩
+			try {
+				viewinfo = URLEncoder.encode(viewinfo, "UTF-8");
+			} catch (UnsupportedEncodingException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		
+		return viewinfo;
+	}
+	
+	private String getExt(String fileName){
+		if(fileName.indexOf(".")>-1){
+			return fileName.substring(fileName.lastIndexOf(".")+1);
+		}else{
+			return "";
+		}
 	}
 
 }
