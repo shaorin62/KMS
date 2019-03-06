@@ -150,7 +150,7 @@ function streamDocPop(viewInfo){
 						<td>
 							<div class="bx12 dpinblock">
 								<p class="file">
-									<a href="http://${ctx }:3000/view?id=<c:out value='${att.Viewinfo}'/>"><c:out value="${att.ORG_FILE_NM}"/></a>
+									<a href="http://${ctx }:3001/streamdocs/viewer.html?viewInfo=<c:out value='${att.Viewinfo}'/>"><c:out value="${att.ORG_FILE_NM}"/></a>
 								</p>								
 							</div>
 							<!--  Trend Report 카테고리가 셀럽 파워리포트가 아닐 경우 다운로드 --> 
