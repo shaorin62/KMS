@@ -164,7 +164,7 @@ function update(){
 function updatePwinit(){
 
 	//패스워드 초기화
-	if(!confirm('패스워드를 초기화 하시겠습니까? \n패스워드는 생년월일 9 자리로 초기화 됩니다.' )) return;
+	if(!confirm('패스워드를 초기화 하시겠습니까? \n패스워드는 생년월일 8 자리로 초기화 됩니다.' )) return;
 
 	// 세션체크
 	if( sessionCheck() == false ) { sessionOut(); return; }
