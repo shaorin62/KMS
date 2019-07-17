@@ -107,7 +107,7 @@ function changePasswd(){
 				<li>비밀 번호는 영문+숫자+특수문자 8자로 입력하셔야 합니다.</li>
 				<li>
 					비밀번호 변경 관련 문의 사항은 담당자에게 연락 바랍니다.
-					<p class="">- ADMIN 관리자: 박예린     <span class="ml15">문의 메일: <a href="mailto:yerin.park@smtown.com">yerin.park@smtown.com</a></span></p>
+					<p class="">- ADMIN 관리자: 김미란     <span class="ml15">문의 메일: <a href="mailto:mrkim@smtown.com">mrkim@smtown.com</a></span></p>
 				</li>
 			</ul>
 		</fieldset>

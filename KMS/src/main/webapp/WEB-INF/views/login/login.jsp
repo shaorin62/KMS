@@ -172,7 +172,7 @@ function setCookie(cName, cValue,cDay){
 
 			<p class="loginTx02">
 				<a href="/login/selfAuth.do">비밀번호 재설정</a> |
-				<!--  <a href="mailTo:yerin.park@smtown.com">비밀번호 문의</a> |-->
+				<!--  <a href="mailTo:mrkim@smtown.com">비밀번호 문의</a> |-->
 				<a href="javascript:createIcon();"><span class="red">바로가기만들기</span> </a>
 			</p>
 
@@ -183,7 +183,7 @@ function setCookie(cName, cValue,cDay){
 					M-Library 는 IE 에서 에러가 발생 될 수 있습니다.</li>
 				<li>
 					기타 문의 사항은  ADMIN 관리자에게 문의 바랍니다.
-					<p class="">- ADMIN 관리자: 박예린.     <span class="ml15">문의 메일: <a href="mailto:yerin.park@smtown.com">yerin.park@smtown.com</a></span></p>
+					<p class="">- ADMIN 관리자: 김미란P.     <span class="ml15">문의 메일: <a href="mailto:mrkim@smtown.com">mrkim@smtown.com</a></span></p>
 				</li>
 			</ul>
 		</fieldset>

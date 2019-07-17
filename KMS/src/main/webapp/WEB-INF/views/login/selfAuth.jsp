@@ -88,7 +88,7 @@ function selfAuth(){
 					<li>생년월일/이메일로 본인확인이 완료되면 비밀번호를 변경하실 수 있습니다.</li>
 					<li>
 						비밀번호 변경 관련 문의 사항은 담당자에게 연락 바랍니다.
-						<p class="">- ADMIN 관리자: 박예린     <span class="ml15">문의 메일: <a href="mailto:yerin.park@smtown.com">yerin.park@smtown.com</a></span></p>
+						<p class="">- ADMIN 관리자: 김미란     <span class="ml15">문의 메일: <a href="mailto:mrkim@smtown.com">mrkim@smtown.com</a></span></p>
 					</li>
 				</ul>
 			</fieldset>

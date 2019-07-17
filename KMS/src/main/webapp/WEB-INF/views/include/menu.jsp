@@ -21,7 +21,7 @@
 		</div>
 	</div>
 
-	<p class="leftmaster"><a href="mailTo:yerin.park@smtown.com">관리자 문의</a></p>
+	<p class="leftmaster"><a href="mailTo:mrkim@smtown.com">관리자 문의</a></p>
 
 </div>
 <!-- Left // -->

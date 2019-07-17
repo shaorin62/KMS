@@ -32,8 +32,8 @@
 			<p class="tx1">M-Library가 원활히 작동되지 않고 있습니다.<br>
 			잠시 후 다시 접속 부탁 드립니다.<br>
 			재 접속 후에도 정상 동작하지 않는 경우 담당자에게 문의 바랍니다.</p>
-			<p class="tx2">담당자 : 박예린</p>
-			<p class=""><a href="mailto:yerin.park@smtown.com">yerin.park@smtown.com</a></p>
+			<p class="tx2">담당자 : 김미란</p>
+			<p class=""><a href="mailto:mrkim@smtown.com">mrkim@smtown.com</a></p>
 		</div>
 	</div>
 
