@@ -13,7 +13,7 @@
 		<org.springframework-security-version>4.2.0.RELEASE</org.springframework-security-version>
 		<org.aspectj-version>1.8.9</org.aspectj-version>
 		<org.slf4j-version>1.7.21</org.slf4j-version>
-		<logback-version>1.1.7</logback-version>
+		<logback-version>1.2.0</logback-version>
 		<tika-version>1.13</tika-version>
 		<poi-version>3.15</poi-version>
 	</properties>
